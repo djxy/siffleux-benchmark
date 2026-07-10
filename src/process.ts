@@ -1,5 +1,11 @@
 import { spawn, type ChildProcess } from "child_process";
 
+export function sleep(seconds: number) {
+  return new Promise((res, _) => {
+    setTimeout(res, seconds * 1000);
+  });
+}
+
 export class Process {
   #spawned_process: ChildProcess;
 
