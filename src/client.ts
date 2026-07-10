@@ -35,15 +35,15 @@ export async function launch_http_stress_test(config: HttpStressTestConfig) {
     "-p",
     `${config.sockperf.port}`,
     "-t",
-    `${config.duration_seconds + 10}`,
+    `${config.duration_seconds + 2}`,
   );
 
   console.log(
-    "Sockperf started. Starting vegeta in 5 seconds." +
+    "Sockperf started. Starting vegeta in 2 seconds." +
       new Date().toISOString(),
   );
 
-  await sleep(5);
+  await sleep(2);
 
   const vegeta = Process.spawn(
     "sh",
@@ -58,16 +58,7 @@ export async function launch_http_stress_test(config: HttpStressTestConfig) {
     vegeta.kill();
   });
 
-  await vegeta.closed();
-
-  console.log(
-    "Vegeta terminated. Waiting 5 seconds for sockperf to terminate." +
-      new Date().toISOString(),
-  );
-
-  await sockperf.closed();
-
-  console.log("Sockperf terminated." + new Date().toISOString());
+  await Promise.all([vegeta.closed(), sockperf.closed()]);
 
   console.log("Finished http test.");
 }
@@ -86,15 +77,12 @@ export async function launch_tcp_throughput_test(
     "-p",
     `${config.sockperf.port}`,
     "-t",
-    `${config.duration_seconds + 10}`,
+    `${config.duration_seconds + 2}`,
   );
 
-  console.log(
-    "Sockperf started. Starting iperf3 in 5 seconds." +
-      new Date().toISOString(),
-  );
+  console.log("Sockperf started. Starting iperf3 in 2 seconds.");
 
-  await sleep(5);
+  await sleep(2);
 
   const iperf3 = Process.spawn(
     "iperf3",
@@ -108,23 +96,14 @@ export async function launch_tcp_throughput_test(
     `${config.duration_seconds}`,
   );
 
-  console.log("Iperf3 started." + new Date().toISOString());
+  console.log("Iperf3 started.");
 
   process.on("SIGINT", () => {
     sockperf.kill();
     iperf3.kill();
   });
 
-  await iperf3.closed();
-
-  console.log(
-    "Iperf3 terminated. Waiting 5 seconds for sockperf to terminate." +
-      new Date().toISOString(),
-  );
-
-  await sockperf.closed();
-
-  console.log("Sockperf terminated." + new Date().toISOString());
+  await Promise.all([iperf3.closed(), sockperf.closed()]);
 
   console.log("Finished tcp throughput test.");
 }
