@@ -1,6 +1,6 @@
 import { Process, sleep } from "./process.js";
 
-export interface TcpThroughputTestConfig {
+export interface TcpTestConfig {
   server_ip: string;
   duration_seconds: number;
   iperf3: {
@@ -12,9 +12,12 @@ export interface TcpThroughputTestConfig {
   };
 }
 
-export interface HttpStressTestConfig {
+export interface HttpTestConfig {
   server_ip: string;
   duration_seconds: number;
+  vegeta: {
+    max_workers: number;
+  };
   nginx: {
     port: number;
   };
@@ -23,7 +26,7 @@ export interface HttpStressTestConfig {
   };
 }
 
-export async function launch_http_stress_test(config: HttpStressTestConfig) {
+export async function launch_http_stress_test(config: HttpTestConfig) {
   console.log("Starting http test.");
 
   const sockperf = Process.spawn(
@@ -39,8 +42,7 @@ export async function launch_http_stress_test(config: HttpStressTestConfig) {
   );
 
   console.log(
-    "Sockperf started. Starting vegeta in 2 seconds." +
-      new Date().toISOString(),
+    "Sockperf started. Starting vegeta in 2 seconds."
   );
 
   await sleep(2);
@@ -48,10 +50,10 @@ export async function launch_http_stress_test(config: HttpStressTestConfig) {
   const vegeta = Process.spawn(
     "sh",
     "-c",
-    `echo "GET http://${config.server_ip}:${config.nginx.port}" | vegeta attack -max-workers 1 -rate 0 -duration ${config.duration_seconds}s | vegeta report -every=1s`,
+    `echo "GET http://${config.server_ip}:${config.nginx.port}" | vegeta attack -max-workers ${config.vegeta.max_workers} -rate 0 -duration ${config.duration_seconds}s | vegeta report -every=1s`,
   );
 
-  console.log("Vegeta started." + new Date().toISOString());
+  console.log("Vegeta started.");
 
   process.on("SIGINT", () => {
     sockperf.kill();
@@ -64,7 +66,7 @@ export async function launch_http_stress_test(config: HttpStressTestConfig) {
 }
 
 export async function launch_tcp_throughput_test(
-  config: TcpThroughputTestConfig,
+  config: TcpTestConfig,
 ) {
   console.log("Starting tcp throughput test.");
 

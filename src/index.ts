@@ -26,6 +26,11 @@ const argv = await yargs(hideBin(process.argv))
         describe: "Duration in seconds to stress test.",
         demandOption: true,
       })
+      .positional("vegeta-max-workers", {
+        type: "number",
+        describe: "Vegeta -max-workers",
+        default: 8,
+      })
       .positional("nginx-port", {
         type: "number",
         describe: "Port of the nginx server.",
@@ -93,6 +98,9 @@ switch (args._[0]) {
     await launch_http_stress_test({
       server_ip: args.ip,
       duration_seconds: args.duration,
+      vegeta: {
+        max_workers: args["vegeta-max-workers"]
+      },
       nginx: {
         port: args["nginx-port"],
       },
