@@ -35,8 +35,13 @@ COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 
+# nginx
 EXPOSE 80
+# tcp echo
+EXPOSE 3001
+# iperf3
 EXPOSE 5201
+#sockperf
 EXPOSE 11111
 
 ENTRYPOINT ["node", "dist/index.js"]
