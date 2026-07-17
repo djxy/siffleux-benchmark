@@ -7,7 +7,7 @@ export interface ServerConfig {
   server_ip: string;
 }
 
-export interface TestConfig {
+export interface DurationConfig {
   duration_seconds: number;
 }
 
@@ -43,17 +43,21 @@ export interface TcpEchoConfig {
   };
 }
 
-export type LatencyTestConfig = ServerConfig & TestConfig & SockperfConfig;
+export type LatencyTestConfig = ServerConfig & DurationConfig & SockperfConfig;
 
-export type TcpConnectionTestConfig = ServerConfig & TcpEchoConfig;
+export type TcpOpenConnectionTestConfig = ServerConfig & TcpEchoConfig;
+
+export type TcpIdleConnectionTestConfig = ServerConfig &
+  DurationConfig &
+  TcpEchoConfig;
 
 export type TcpBandwidthTestConfig = ServerConfig &
-  TestConfig &
+  DurationConfig &
   SockperfConfig &
   Iperf3Config;
 
 export type HttpTestConfig = ServerConfig &
-  TestConfig &
+  DurationConfig &
   SockperfConfig &
   VegetaConfig &
   NginxConfig;
@@ -162,7 +166,7 @@ export async function launch_tcp_bandwidth_test(
 }
 
 function launch_sockperf(
-  config: ServerConfig & TestConfig & SockperfConfig,
+  config: ServerConfig & DurationConfig & SockperfConfig,
   results_folder: string,
 ) {
   return Process.spawn({
@@ -186,37 +190,24 @@ interface ConnectionResult {
   duration_ns: number;
 }
 
-export async function launch_tcp_connection_test(
-  config: TcpConnectionTestConfig,
+export async function launch_tcp_open_connection_test(
+  config: TcpOpenConnectionTestConfig,
 ) {
-  logger.info("Starting tcp connection test.");
+  logger.info("Starting tcp open connection test.");
+
   const bytes = Buffer.from([0x01]);
   const test_started_at = process.hrtime.bigint();
-  logger.info(config.tcp_echo.connections);
-
   const results: ConnectionResult[] = await Promise.all(
     Array.from(
       { length: config.tcp_echo.connections },
       (_, i) =>
         new Promise<ConnectionResult>((res) => {
-          if (i === 402) {
-            logger.info("start");
-          }
           const start = process.hrtime.bigint();
-          if (i === 402) {
-            logger.info("hrtime");
-          }
           const socket = new net.Socket();
-          if (i === 402) {
-            logger.info("socket");
-          }
           let completed = false;
 
           const terminate = (status: "success" | "error" | "timeout") => {
             if (completed) return;
-            if (i === 402) {
-              logger.info("terminate");
-            }
             completed = true;
             socket.destroy();
 
@@ -226,19 +217,16 @@ export async function launch_tcp_connection_test(
           };
 
           socket.setTimeout(10_000);
-          if (i === 402) {
-            logger.info("setTimeout");
-          }
 
-          socket.connect(3001, config.server_ip, () => {
-            if (i === 402) {
-              logger.info("connected");
-            }
-            socket.write(bytes);
-          });
-          if (i === 402) {
-            logger.info("connecting");
-          }
+          socket.connect(
+            {
+              port: 3001,
+              host: config.server_ip,
+            },
+            () => {
+              socket.write(bytes);
+            },
+          );
 
           socket.once("data", () => {
             terminate("success");
@@ -282,5 +270,90 @@ export async function launch_tcp_connection_test(
     logger.info(`  Max:  ${(max / 1e6).toFixed(2)}ms`);
   }
 
-  logger.info("Finished tcp bandwidth test.");
+  logger.info("Finished tcp open connection test.");
+}
+
+export async function launch_tcp_idle_connection_test(
+  config: TcpIdleConnectionTestConfig,
+) {
+  logger.info("Starting tcp idle connection test.");
+  let socket_timeouts = 0;
+  let socket_errors = 0;
+
+  logger.info(`Launching connections.`);
+
+  const sockets = await Promise.all(
+    Array.from(
+      { length: config.tcp_echo.connections },
+      (_, i) =>
+        new Promise<net.Socket>((res) => {
+          const socket = new net.Socket();
+
+          socket.setTimeout(10_000);
+
+          socket.connect(
+            {
+              port: 3001,
+              host: config.server_ip,
+            },
+            () => {
+              res(socket);
+
+              let interval_id = setInterval(
+                () => {
+                  let value = Math.floor(Math.random() * 100);
+
+                  if (socket.writableEnded) {
+                    return;
+                  }
+
+                  socket.write(Buffer.from([value]));
+
+                  socket.once("data", (data) => {
+                    if (data[0] !== value) {
+                      socket_errors++;
+                      socket.end();
+                    }
+                  });
+                },
+                Math.floor(3000 + Math.random() * 4000),
+              ); // Random between 3-7 seconds between packets to not timeout connection.
+
+              socket.once("end", () => {
+                clearInterval(interval_id);
+              });
+            },
+          );
+
+          socket.once("timeout", (e) => {
+            logger.error(e);
+            socket_timeouts++;
+            res(socket);
+          });
+          socket.once("error", (e) => {
+            logger.error(e);
+            socket_errors++;
+            res(socket);
+          });
+        }),
+    ),
+  );
+
+  logger.info(`Launched ${config.tcp_echo.connections} idle connections for ${config.duration_seconds} seconds.`);
+
+  await sleep(config.duration_seconds);
+
+  sockets.forEach((socket) => {
+    socket.end();
+  });
+
+  logger.info(`Closed connections.`);
+
+  logger.info(
+    `Successful connections: ${config.tcp_echo.connections - socket_errors}`,
+  );
+  logger.info(`Failed connections: ${socket_errors - socket_timeouts}`);
+  logger.info(`Timeout connections: ${socket_timeouts}`);
+
+  logger.info("Finished tcp idle connection test.");
 }

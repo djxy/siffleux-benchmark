@@ -34,10 +34,16 @@ class TcpEchoServer {
 
   constructor() {
     this.#server = net.createServer((socket) => {
-      socket.once("data", (data) => {
-        socket.write(data);
-        socket.end();
+      socket.on("data", (data) => {
+        if (!socket.write(data)) {
+          socket.pause();
+        }
       });
+
+      socket.on("drain", () => {
+        socket.resume();
+      });
+
       socket.on("error", () => {});
     });
   }
