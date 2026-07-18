@@ -1,0 +1,21 @@
+id = "siffleux-server"
+
+[[tcp_ingress]]
+id = "sockperf"
+port = 9000
+auth_key = "secret!123"
+
+[[tcp_ingress]]
+id = "nginx"
+port = 9001
+auth_key = "secret!123"
+
+[[tcp_ingress]]
+id = "iperf3"
+port = 9002
+auth_key = "secret!123"
+
+[[tcp_ingress]]
+id = "tcp_echo"
+port = 9003
+auth_key = "secret!123"

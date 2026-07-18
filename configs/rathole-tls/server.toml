@@ -1,0 +1,25 @@
+[server]
+bind_addr = "0.0.0.0:2333"
+
+[server.transport]
+type = "tls"
+
+[server.transport.tls]
+pkcs12 = "/app/certs/identity.pfx"
+pkcs12_password = "secret_password"
+
+[server.services.sockperf]
+token = "secret!123"
+bind_addr = "0.0.0.0:9000"
+
+[server.services.nginx]
+token = "secret!123"
+bind_addr = "0.0.0.0:9001"
+
+[server.services.iperf3]
+token = "secret!123"
+bind_addr = "0.0.0.0:9002"
+
+[server.services.tcp_echo]
+token = "secret!123"
+bind_addr = "0.0.0.0:9003"

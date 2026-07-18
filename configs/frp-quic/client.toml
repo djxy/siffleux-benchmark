@@ -1,0 +1,32 @@
+serverAddr = "frp-quic-server"
+serverPort = 7000
+
+transport.protocol = "quic"
+
+[[proxies]]
+name = "sockperf"
+type = "tcp"
+localIP = "siffleux-benchmark"
+localPort = 11111
+remotePort = 9000
+
+[[proxies]]
+name = "nginx"
+type = "tcp"
+localIP = "siffleux-benchmark"
+localPort = 80
+remotePort = 9001
+
+[[proxies]]
+name = "iperf3"
+type = "tcp"
+localIP = "siffleux-benchmark"
+localPort = 5201
+remotePort = 9002
+
+[[proxies]]
+name = "tcp_echo"
+type = "tcp"
+localIP = "siffleux-benchmark"
+localPort = 3001
+remotePort = 9003

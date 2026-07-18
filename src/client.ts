@@ -62,12 +62,22 @@ export type HttpTestConfig = ServerConfig &
   VegetaConfig &
   NginxConfig;
 
+interface ConnectionResult {
+  status: "success" | "error" | "timeout";
+  duration_ns: number;
+}
+
 async function create_results_folder() {
-  const folder = `/results/${new Date().toISOString()}`;
-
+  const folder = `/results/${new Date().toISOString().replace(/:/g, "-")}`;
   await fs.mkdir(folder, { recursive: true });
-
   return folder;
+}
+
+function handleSigint(...processes: Process[]) {
+  process.once("SIGINT", () => {
+    logger.info("\nTest aborted.");
+    processes.forEach((p) => p.kill());
+  });
 }
 
 export async function launch_http_stress_test(config: HttpTestConfig) {
@@ -95,10 +105,7 @@ export async function launch_http_stress_test(config: HttpTestConfig) {
 
   logger.info("Vegeta started.");
 
-  process.on("SIGINT", () => {
-    sockperf.kill();
-    vegeta.kill();
-  });
+  handleSigint(vegeta, sockperf);
 
   await Promise.all([vegeta.closed(), sockperf.closed()]);
 
@@ -116,9 +123,7 @@ export async function launch_latency_test(config: LatencyTestConfig) {
 
   logger.info("Sockperf started.");
 
-  process.on("SIGINT", () => {
-    sockperf.kill();
-  });
+  handleSigint(sockperf);
 
   await Promise.all([sockperf.closed()]);
 
@@ -155,10 +160,7 @@ export async function launch_tcp_bandwidth_test(
 
   logger.info("Iperf3 started.");
 
-  process.on("SIGINT", () => {
-    sockperf.kill();
-    iperf3.kill();
-  });
+  handleSigint(iperf3, sockperf);
 
   await Promise.all([iperf3.closed(), sockperf.closed()]);
 
@@ -183,11 +185,6 @@ function launch_sockperf(
     ],
     logs_folder: results_folder,
   });
-}
-
-interface ConnectionResult {
-  status: "success" | "error" | "timeout";
-  duration_ns: number;
 }
 
 export async function launch_tcp_open_connection_test(
@@ -220,7 +217,7 @@ export async function launch_tcp_open_connection_test(
 
           socket.connect(
             {
-              port: 3001,
+              port: config.tcp_echo.port,
               host: config.server_ip,
             },
             () => {
@@ -247,12 +244,6 @@ export async function launch_tcp_open_connection_test(
   const failed = results.filter((r) => r.status !== "success");
   const latencies = successful.map((r) => r.duration_ns).sort((a, b) => a - b);
 
-  const p50 = latencies[Math.floor(latencies.length * 0.5)] || 0;
-  const p95 = latencies[Math.floor(latencies.length * 0.95)] || 0;
-  const p99 = latencies[Math.floor(latencies.length * 0.99)] || 0;
-  const min = latencies[0] || 0;
-  const max = latencies[latencies.length - 1] || 0;
-
   logger.info(
     `Total Time for test: ${Number(test_ended_at - test_started_at) / 1e6}ms`,
   );
@@ -262,12 +253,19 @@ export async function launch_tcp_open_connection_test(
   logger.info(`Failed connections: ${failed.length}`);
 
   if (successful.length > 0) {
+    const getPercentile = (p: number) =>
+      latencies[
+        Math.min(latencies.length - 1, Math.floor(latencies.length * p))
+      ] as number;
+
     logger.info(`Latency Percentiles (TTFB):`);
-    logger.info(`  Min:  ${(min / 1e6).toFixed(2)}ms`);
-    logger.info(`  p50:  ${(p50 / 1e6).toFixed(2)}ms`);
-    logger.info(`  p95:  ${(p95 / 1e6).toFixed(2)}ms`);
-    logger.info(`  p99:  ${(p99 / 1e6).toFixed(2)}ms`);
-    logger.info(`  Max:  ${(max / 1e6).toFixed(2)}ms`);
+    logger.info(`  Min:  ${((latencies[0] as number) / 1e6).toFixed(2)}ms`);
+    logger.info(`  p50:  ${(getPercentile(0.5) / 1e6).toFixed(2)}ms`);
+    logger.info(`  p95:  ${(getPercentile(0.95) / 1e6).toFixed(2)}ms`);
+    logger.info(`  p99:  ${(getPercentile(0.99) / 1e6).toFixed(2)}ms`);
+    logger.info(
+      `  Max:  ${((latencies[latencies.length - 1] as number) / 1e6).toFixed(2)}ms`,
+    );
   }
 
   logger.info("Finished tcp open connection test.");
@@ -293,7 +291,7 @@ export async function launch_tcp_idle_connection_test(
 
           socket.connect(
             {
-              port: 3001,
+              port: config.tcp_echo.port,
               host: config.server_ip,
             },
             () => {
@@ -339,7 +337,9 @@ export async function launch_tcp_idle_connection_test(
     ),
   );
 
-  logger.info(`Launched ${config.tcp_echo.connections} idle connections for ${config.duration_seconds} seconds.`);
+  logger.info(
+    `Launched ${config.tcp_echo.connections} idle connections for ${config.duration_seconds} seconds.`,
+  );
 
   await sleep(config.duration_seconds);
 

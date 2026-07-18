@@ -1,0 +1,27 @@
+[server]
+address = "siffleux-server:8765"
+certificate_hash = "smVvwBEKwl0EHp_YonwvNClf1a6-LRLg0bficvKH_Qw="
+
+[[tcp_egress]]
+id = "sockperf"
+ingress_id = "sockperf"
+auth_key = "secret!123"
+target = "siffleux-benchmark:11111"
+
+[[tcp_egress]]
+id = "nginx"
+ingress_id = "nginx"
+auth_key = "secret!123"
+target = "siffleux-benchmark:80"
+
+[[tcp_egress]]
+id = "iperf3"
+ingress_id = "iperf3"
+auth_key = "secret!123"
+target = "siffleux-benchmark:5201"
+
+[[tcp_egress]]
+id = "tcp_echo"
+ingress_id = "tcp_echo"
+auth_key = "secret!123"
+target = "siffleux-benchmark:3001"

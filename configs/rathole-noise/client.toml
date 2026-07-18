@@ -1,0 +1,24 @@
+[client]
+remote_addr = "rathole-noise-server:2333"
+
+[client.transport]
+type = "noise"
+
+[client.transport.noise]
+remote_public_key = "GQYTKSbWLBUSZiGfdWPSgek9yoOuaiwGD/GIX8Z1kkE="
+
+[client.services.sockperf]
+token = "secret!123"
+local_addr = "siffleux-benchmark:11111"
+
+[client.services.nginx]
+token = "secret!123"
+local_addr = "siffleux-benchmark:80"
+
+[client.services.iperf3]
+token = "secret!123"
+local_addr = "siffleux-benchmark:5201"
+
+[client.services.tcp_echo]
+token = "secret!123"
+local_addr = "siffleux-benchmark:3001"

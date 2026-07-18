@@ -1,0 +1,91 @@
+services:
+  frp-tls-server:
+    image: ghcr.io/fatedier/frps:v0.70.0
+    volumes:
+      - ./configs/frp-tls/server.toml:/etc/frp/frps.toml
+    command: ["-c", "/etc/frp/frps.toml"]
+  frp-tls-client:
+    image: ghcr.io/fatedier/frpc:v0.70.0
+    volumes:
+      - ./configs/frp-tls/client.toml:/etc/frp/frpc.toml
+    command: ["-c", "/etc/frp/frpc.toml"]
+    depends_on:
+      - frp-tls-server
+  frp-quic-server:
+    image: ghcr.io/fatedier/frps:v0.70.0
+    volumes:
+      - ./configs/frp-quic/server.toml:/etc/frp/frps.toml
+    command: ["-c", "/etc/frp/frps.toml"]
+  frp-quic-client:
+    image: ghcr.io/fatedier/frpc:v0.70.0
+    volumes:
+      - ./configs/frp-quic/client.toml:/etc/frp/frpc.toml
+    command: ["-c", "/etc/frp/frpc.toml"]
+    depends_on:
+      - frp-quic-server
+  frp-kcp-server:
+    image: ghcr.io/fatedier/frps:v0.70.0
+    volumes:
+      - ./configs/frp-kcp/server.toml:/etc/frp/frps.toml
+    command: ["-c", "/etc/frp/frps.toml"]
+  frp-kcp-client:
+    image: ghcr.io/fatedier/frpc:v0.70.0
+    volumes:
+      - ./configs/frp-kcp/client.toml:/etc/frp/frpc.toml
+    command: ["-c", "/etc/frp/frpc.toml"]
+    depends_on:
+      - frp-kcp-server
+  rathole-tls-server:
+    image: rathole:latest
+    volumes:
+      - ./configs/rathole-tls/server.toml:/app/config.toml
+      - ./configs/rathole-tls/certs:/app/certs:ro
+    environment:
+      - RUST_LOG=debug
+    command: ["--server", "/app/config.toml"]
+  rathole-tls-client:
+    image: rathole:latest
+    volumes:
+      - ./configs/rathole-tls/client.toml:/app/config.toml
+      - ./configs/rathole-tls/certs:/app/certs:ro
+    environment:
+      - RUST_LOG=debug
+    command: ["--client", "/app/config.toml"]
+    depends_on:
+      - rathole-tls-server
+  rathole-noise-server:
+    image: rathole:latest
+    volumes:
+      - ./configs/rathole-noise/server.toml:/app/config.toml
+    environment:
+      - RUST_LOG=debug
+    command: ["--server", "/app/config.toml"]
+  rathole-noise-client:
+    image: rathole:latest
+    volumes:
+      - ./configs/rathole-noise/client.toml:/app/config.toml
+    environment:
+      - RUST_LOG=debug
+    command: ["--client", "/app/config.toml"]
+    depends_on:
+      - rathole-noise-server
+  siffleux-server:
+    image: siffleux:latest
+    volumes:
+      - siffleux_server_data:/siffleux
+      - ./configs/siffleux/server.toml:/siffleux/config.toml
+    command: server --config /siffleux/config.toml
+  siffleux-client:
+    image: siffleux:latest
+    volumes:
+      - ./configs/siffleux/client.toml:/siffleux/config.toml
+    command: client --config /siffleux/config.toml
+    depends_on:
+      - siffleux-server
+  siffleux-benchmark:
+    image: siffleux-benchmark:latest
+    volumes:
+      - ./results:/results
+    command: server
+volumes:
+  siffleux_server_data:
