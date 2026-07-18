@@ -70,13 +70,13 @@ services:
     depends_on:
       - rathole-noise-server
   siffleux-server:
-    image: siffleux:latest
+    image: ghcr.io/djxy/siffleux:latest
     volumes:
       - siffleux_server_data:/siffleux
       - ./configs/siffleux/server.toml:/siffleux/config.toml
     command: server --config /siffleux/config.toml
   siffleux-client:
-    image: siffleux:latest
+    image: ghcr.io/djxy/siffleux:latest
     volumes:
       - ./configs/siffleux/client.toml:/siffleux/config.toml
     command: client --config /siffleux/config.toml
