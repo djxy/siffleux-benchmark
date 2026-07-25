@@ -56,6 +56,10 @@ export type TcpBandwidthTestConfig = ServerConfig &
   SockperfConfig &
   Iperf3Config;
 
+export type UdpBandwidthTestConfig = ServerConfig &
+  DurationConfig &
+  Iperf3Config;
+
 export type HttpTestConfig = ServerConfig &
   DurationConfig &
   SockperfConfig &
@@ -165,6 +169,38 @@ export async function launch_tcp_bandwidth_test(
   await Promise.all([iperf3.closed(), sockperf.closed()]);
 
   logger.info("Finished tcp bandwidth test.");
+}
+export async function launch_udp_bandwidth_test(
+  config: UdpBandwidthTestConfig,
+) {
+  const results_folder = await create_results_folder();
+
+  logger.info("Starting udp bandwidth test.");
+
+  const iperf3 = Process.spawn({
+    cmd: "iperf3",
+    args: [
+      "-c",
+      config.server_ip,
+      "-p",
+      `${config.iperf3.port}`,
+      "-P",
+      `${config.iperf3.parallelism}`,
+      "-t",
+      `${config.duration_seconds}`,
+      "-u",
+      "--bidir"
+    ],
+    logs_folder: results_folder,
+  });
+
+  logger.info("Iperf3 started.");
+
+  handleSigint(iperf3);
+
+  await Promise.all([iperf3.closed()]);
+
+  logger.info("Finished udp bandwidth test.");
 }
 
 function launch_sockperf(

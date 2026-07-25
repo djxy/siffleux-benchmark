@@ -7,6 +7,7 @@ import {
   launch_tcp_bandwidth_test,
   launch_tcp_idle_connection_test,
   launch_tcp_open_connection_test,
+  launch_udp_bandwidth_test,
   type DurationConfig,
   type Iperf3Config,
   type NginxConfig,
@@ -233,6 +234,29 @@ await yargs(hideBin(process.argv))
       .demandCommand(
         1,
         "You must specify a TCP test.",
+      );
+  })
+  .command("udp <scenario>", "UDP protocol benchmarks", (yargs_tcp) => {
+    return yargs_tcp
+      .command(
+        "bandwidth",
+        "Measure maximum UDP throughput using iperf3",
+        (y) => set_iperf3_options(set_duration_options(set_server_options(y))),
+        async (argv) => {
+          try {
+            await launch_udp_bandwidth_test({
+              ...args_to_server_config(argv),
+              ...args_to_duration_config(argv),
+              ...args_to_iperf3_config(argv),
+            });
+          } catch (err) {
+            logger.error(err);
+          }
+        },
+      )
+      .demandCommand(
+        1,
+        "You must specify a UDP test.",
       );
   })
   .demandCommand(1, "You must select a benchmark command to execute.")

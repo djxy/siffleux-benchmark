@@ -21,3 +21,7 @@ docker run --rm -it -v ./results:/results --network siffleux-benchmark_default s
 ```
 docker run --rm -it -v ./results:/results --network siffleux-benchmark_default siffleux-benchmark:latest tcp idle --ip 192.168.97.3 --tcp-echo-port 9003 --connections 10000 --duration 10
 ```
+
+```
+docker run --rm -it -v ./results:/results --network siffleux-benchmark_default siffleux-benchmark:latest udp bandwidth --ip 192.168.97.4  --iperf3-port 9002 --duration 10
+```
