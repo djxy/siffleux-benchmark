@@ -24,6 +24,12 @@ export interface Iperf3Config {
   };
 }
 
+export interface Iperf3UDPConfig {
+  iperf3: {
+    bandwidth: string;
+  };
+}
+
 export interface VegetaConfig {
   vegeta: {
     max_workers: number;
@@ -58,6 +64,8 @@ export type TcpBandwidthTestConfig = ServerConfig &
 
 export type UdpBandwidthTestConfig = ServerConfig &
   DurationConfig &
+  SockperfConfig &
+  Iperf3UDPConfig &
   Iperf3Config;
 
 export type HttpTestConfig = ServerConfig &
@@ -91,7 +99,7 @@ export async function launch_http_stress_test(config: HttpTestConfig) {
 
   logger.info("Starting http test.");
 
-  const sockperf = launch_sockperf(config, results_folder);
+  const sockperf = launch_sockperf(config, results_folder, 'tcp');
 
   logger.info("Sockperf started. Starting vegeta in 2 seconds.");
 
@@ -116,14 +124,14 @@ export async function launch_http_stress_test(config: HttpTestConfig) {
   logger.info("Finished http test.");
 }
 
-export async function launch_latency_test(config: LatencyTestConfig) {
+export async function launch_tcp_latency_test(config: LatencyTestConfig) {
   const results_folder = await create_results_folder();
 
   await fs.mkdir(results_folder, { recursive: true });
 
-  logger.info("Starting latency test.");
+  logger.info("Starting TCP latency test.");
 
-  const sockperf = launch_sockperf(config, results_folder);
+  const sockperf = launch_sockperf(config, results_folder, 'tcp');
 
   logger.info("Sockperf started.");
 
@@ -141,7 +149,7 @@ export async function launch_tcp_bandwidth_test(
 
   logger.info("Starting tcp bandwidth test.");
 
-  const sockperf = launch_sockperf(config, results_folder);
+  const sockperf = launch_sockperf(config, results_folder, 'tcp');
 
   logger.info("Sockperf started. Starting iperf3 in 2 seconds.");
 
@@ -170,12 +178,35 @@ export async function launch_tcp_bandwidth_test(
 
   logger.info("Finished tcp bandwidth test.");
 }
+
+export async function launch_udp_latency_test(config: LatencyTestConfig) {
+  const results_folder = await create_results_folder();
+
+  await fs.mkdir(results_folder, { recursive: true });
+
+  logger.info("Starting UDP latency test.");
+
+  const sockperf = launch_sockperf(config, results_folder, 'udp');
+
+  logger.info("Sockperf started.");
+
+  handleSigint(sockperf);
+
+  await Promise.all([sockperf.closed()]);
+
+  logger.info("Finished latency test.");
+}
+
 export async function launch_udp_bandwidth_test(
   config: UdpBandwidthTestConfig,
 ) {
   const results_folder = await create_results_folder();
 
   logger.info("Starting udp bandwidth test.");
+
+  const sockperf = launch_sockperf(config, results_folder, "udp");
+
+  logger.info("Sockperf started. Starting iperf3 in 2 seconds.");
 
   const iperf3 = Process.spawn({
     cmd: "iperf3",
@@ -189,16 +220,18 @@ export async function launch_udp_bandwidth_test(
       "-t",
       `${config.duration_seconds}`,
       "-u",
-      "--bidir"
+      "--bidir",
+      "-b",
+      `${config.iperf3.bandwidth}`,
     ],
     logs_folder: results_folder,
   });
 
   logger.info("Iperf3 started.");
 
-  handleSigint(iperf3);
+  handleSigint(iperf3, sockperf);
 
-  await Promise.all([iperf3.closed()]);
+  await Promise.all([iperf3.closed(), sockperf.closed()]);
 
   logger.info("Finished udp bandwidth test.");
 }
@@ -206,19 +239,26 @@ export async function launch_udp_bandwidth_test(
 function launch_sockperf(
   config: ServerConfig & DurationConfig & SockperfConfig,
   results_folder: string,
+  protocol: "udp" | "tcp",
 ) {
+  const args = [
+    "ping-pong",
+    "-i",
+    config.server_ip,
+    "-p",
+    `${config.sockperf.port}`,
+    "-t",
+    `${config.duration_seconds + 2}`,
+    "--debug"
+  ];
+
+  if (protocol === "tcp") {
+    args.push("--tcp");
+  }
+
   return Process.spawn({
     cmd: "sockperf",
-    args: [
-      "ping-pong",
-      "--tcp",
-      "-i",
-      config.server_ip,
-      "-p",
-      `${config.sockperf.port}`,
-      "-t",
-      `${config.duration_seconds + 2}`,
-    ],
+    args,
     logs_folder: results_folder,
   });
 }

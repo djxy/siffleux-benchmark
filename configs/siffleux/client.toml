@@ -3,8 +3,14 @@ address = "siffleux-server:8765"
 certificate_hash = "smVvwBEKwl0EHp_YonwvNClf1a6-LRLg0bficvKH_Qw="
 
 [[tcp_egress]]
-id = "sockperf"
-ingress_id = "sockperf"
+id = "sockperf-tcp"
+ingress_id = "sockperf-tcp"
+auth_key = "secret!123"
+target = "siffleux-benchmark:11111"
+
+[[udp_egress]]
+id = "sockperf-udp"
+ingress_id = "sockperf-udp"
 auth_key = "secret!123"
 target = "siffleux-benchmark:11111"
 

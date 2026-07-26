@@ -7,9 +7,13 @@ export async function launch_server() {
 
   const nginx = Process.spawn({ cmd: "nginx", args: ["-g", "daemon off;"] });
   const iperf3 = Process.spawn({ cmd: "iperf3", args: ["-s", "-p", "5201"] });
-  const sockperf = Process.spawn({
+  const sockperf_tcp = Process.spawn({
     cmd: "sockperf",
     args: ["server", "--tcp", "-p", "11111"],
+  });
+  const sockperf_udp = Process.spawn({
+    cmd: "sockperf",
+    args: ["server", "-p", "11111"],
   });
   const tcp_echo = new TcpEchoServer();
 
@@ -20,11 +24,17 @@ export async function launch_server() {
   process.on("SIGINT", () => {
     nginx.kill();
     iperf3.kill();
-    sockperf.kill();
+    sockperf_tcp.kill();
+    sockperf_udp.kill();
     tcp_echo.stop();
   });
 
-  await Promise.all([nginx.closed(), iperf3.closed(), sockperf.closed()]);
+  await Promise.all([
+    nginx.closed(),
+    iperf3.closed(),
+    sockperf_tcp.closed(),
+    sockperf_udp.closed()
+  ]);
 
   logger.info("Closed server");
 }

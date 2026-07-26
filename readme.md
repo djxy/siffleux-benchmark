@@ -23,5 +23,5 @@ docker run --rm -it -v ./results:/results --network siffleux-benchmark_default s
 ```
 
 ```
-docker run --rm -it -v ./results:/results --network siffleux-benchmark_default siffleux-benchmark:latest udp bandwidth --ip 192.168.97.4  --iperf3-port 9002 --duration 10
+docker run --rm -it -v ./results:/results --network siffleux-benchmark_default siffleux-benchmark:latest udp bandwidth --ip 192.168.97.4  --duration 10 --iperf3-port 9002  --iperf3-bandwidth 10m --iperf3-parallelism 8 --sockperf-port 9000
 ```
