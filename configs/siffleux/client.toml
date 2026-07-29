@@ -21,8 +21,14 @@ auth_key = "secret!123"
 target = "siffleux-benchmark:80"
 
 [[tcp_egress]]
-id = "tcp_echo"
-ingress_id = "tcp_echo"
+id = "echo-tcp"
+ingress_id = "echo-tcp"
+auth_key = "secret!123"
+target = "siffleux-benchmark:3001"
+
+[[udp_egress]]
+id = "echo-udp"
+ingress_id = "echo-udp"
 auth_key = "secret!123"
 target = "siffleux-benchmark:3001"
 

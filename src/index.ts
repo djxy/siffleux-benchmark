@@ -5,18 +5,19 @@ import {
   launch_http_stress_test,
   launch_tcp_latency_test,
   launch_tcp_bandwidth_test,
-  launch_tcp_idle_connection_test,
-  launch_tcp_open_connection_test,
+  launch_tcp_idle_socket_test,
+  launch_udp_latency_test,
   launch_udp_bandwidth_test,
+  launch_udp_idle_socket_test,
   type DurationConfig,
   type Iperf3Config,
   type Iperf3UDPConfig,
   type NginxConfig,
   type ServerConfig,
   type SockperfConfig,
-  type TcpEchoConfig,
+  type EchoConfig,
   type VegetaConfig,
-  launch_udp_latency_test,
+  type IdleSocketConfig,
 } from "./client.js";
 import logger from "./logger.js";
 
@@ -60,26 +61,17 @@ function set_nginx_options(argv: Argv) {
   });
 }
 
-function set_tcp_echo_options(argv: Argv) {
-  return argv
-    .option("connections", {
-      type: "number",
-      describe: "Number of concurrent connections.",
-      default: 100,
-    })
-    .option("tcp-echo-port", {
-      type: "number",
-      describe: "Port of the TCP Echo server.",
-      default: 5000,
-    });
-}
-
 function set_iperf3_options(argv: Argv) {
   return argv
     .option("iperf3-parallelism", {
       type: "number",
       describe: "iperf3 parallel streams (-P)",
       default: 8,
+    })
+    .option("iperf3-bandwidth", {
+      type: "string",
+      describe: "iperf3 bandwidth (-b)",
+      default: "10m",
     })
     .option("iperf3-port", {
       type: "number",
@@ -89,10 +81,26 @@ function set_iperf3_options(argv: Argv) {
 }
 
 function set_iperf3_udp_options(argv: Argv) {
-  return argv.option("iperf3-bandwidth", {
-    type: "string",
-    describe: "iperf3 bandwidth (-b)",
-    default: 8,
+  return argv.option("iperf3-payload-size", {
+    type: "number",
+    describe: "iperf3 datagram payload size (-l)",
+    default: 1200,
+  });
+}
+
+function set_echo_options(argv: Argv) {
+  return argv.option("echo-port", {
+    type: "number",
+    describe: "Port of the Echo server.",
+    default: 5000,
+  });
+}
+
+function set_idle_socket_options(argv: Argv) {
+  return argv.option("idle-sockets", {
+    type: "number",
+    describe: "Number of concurrent idle sockets to open.",
+    default: 100,
   });
 }
 
@@ -108,6 +116,7 @@ const args_to_iperf3_config = (args: ArgumentsCamelCase): Iperf3Config => ({
   iperf3: {
     parallelism: args["iperf3-parallelism"] as number,
     port: args["iperf3-port"] as number,
+    bandwidth: args["iperf3-bandwidth"] as string,
   },
 });
 
@@ -115,7 +124,7 @@ const args_to_iperf3_udp_config = (
   args: ArgumentsCamelCase,
 ): Iperf3UDPConfig => ({
   iperf3: {
-    bandwidth: args["iperf3-bandwidth"] as string,
+    payload_size: args["iperf3-payload-size"] as number,
   },
 });
 
@@ -125,10 +134,17 @@ const args_to_sockperf_config = (args: ArgumentsCamelCase): SockperfConfig => ({
   },
 });
 
-const args_to_tcp_echo_config = (args: ArgumentsCamelCase): TcpEchoConfig => ({
-  tcp_echo: {
-    connections: args["connections"] as number,
-    port: args["tcp-echo-port"] as number,
+const args_to_idle_socket_config = (
+  args: ArgumentsCamelCase,
+): IdleSocketConfig => ({
+  idle_socket: {
+    concurrent_sockets: args["idle-sockets"] as number,
+  },
+});
+
+const args_to_echo_config = (args: ArgumentsCamelCase): EchoConfig => ({
+  echo: {
+    port: args["echo-port"] as number,
   },
 });
 
@@ -200,7 +216,7 @@ await yargs(hideBin(process.argv))
       )
       .command(
         "bandwidth",
-        "Measure maximum TCP throughput using iperf3",
+        "Measure maximum TCP throughput using iperf3 and round-trip latency using sockperf",
         (y) =>
           set_sockperf_options(
             set_iperf3_options(set_duration_options(set_server_options(y))),
@@ -219,31 +235,19 @@ await yargs(hideBin(process.argv))
         },
       )
       .command(
-        "concurrency",
-        "Test concurrent connection handling (open and close)",
-        (y) => set_tcp_echo_options(set_server_options(y)),
-        async (argv) => {
-          try {
-            await launch_tcp_open_connection_test({
-              ...args_to_server_config(argv),
-              ...args_to_tcp_echo_config(argv),
-            });
-          } catch (err) {
-            logger.error(err);
-          }
-        },
-      )
-      .command(
-        "idle",
-        "Test long-lived idle connections",
+        "idle-sockets",
+        "Test long-lived TCP sockets sending 1 byte at interval of few seconds",
         (y) =>
-          set_tcp_echo_options(set_duration_options(set_server_options(y))),
+          set_idle_socket_options(
+            set_echo_options(set_duration_options(set_server_options(y))),
+          ),
         async (argv) => {
           try {
-            await launch_tcp_idle_connection_test({
+            await launch_tcp_idle_socket_test({
               ...args_to_server_config(argv),
               ...args_to_duration_config(argv),
-              ...args_to_tcp_echo_config(argv),
+              ...args_to_echo_config(argv),
+              ...args_to_idle_socket_config(argv),
             });
           } catch (err) {
             logger.error(err);
@@ -273,7 +277,7 @@ await yargs(hideBin(process.argv))
       )
       .command(
         "bandwidth",
-        "Measure maximum UDP throughput using iperf3",
+        "Measure maximum UDP throughput using iperf3 and round-trip latency using sockperf",
         (y) =>
           set_sockperf_options(
             set_iperf3_options(
@@ -292,6 +296,26 @@ await yargs(hideBin(process.argv))
                 ...args_to_iperf3_config(argv).iperf3,
                 ...args_to_iperf3_udp_config(argv).iperf3,
               },
+            });
+          } catch (err) {
+            logger.error(err);
+          }
+        },
+      )
+      .command(
+        "idle-sockets",
+        "Test long-lived UDP sockets sending 1 byte at interval of few seconds",
+        (y) =>
+          set_idle_socket_options(
+            set_echo_options(set_duration_options(set_server_options(y))),
+          ),
+        async (argv) => {
+          try {
+            await launch_udp_idle_socket_test({
+              ...args_to_server_config(argv),
+              ...args_to_duration_config(argv),
+              ...args_to_echo_config(argv),
+              ...args_to_idle_socket_config(argv),
             });
           } catch (err) {
             logger.error(err);

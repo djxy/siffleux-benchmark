@@ -26,6 +26,11 @@ port = 9002
 auth_key = "secret!123"
 
 [[tcp_ingress]]
-id = "tcp_echo"
+id = "echo-tcp"
+port = 9003
+auth_key = "secret!123"
+
+[[udp_ingress]]
+id = "echo-udp"
 port = 9003
 auth_key = "secret!123"
