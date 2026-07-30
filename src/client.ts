@@ -1,7 +1,7 @@
 import logger from "./logger.js";
 import { Process, sleep } from "./process.js";
 import fs from "fs/promises";
-import net from "net";
+import net, { Socket } from "net";
 import dgram from "dgram";
 
 export interface ServerConfig {
@@ -44,9 +44,21 @@ export interface NginxConfig {
   };
 }
 
+export interface IdleConnectionConfig {
+  idle_connection: {
+    connections: number;
+  };
+}
+
+export interface OpenConnectionConfig {
+  open_connection: {
+    connections_per_second: number;
+  };
+}
+
 export interface IdleSocketConfig {
   idle_socket: {
-    concurrent_sockets: number;
+    sockets: number;
   };
 }
 
@@ -63,8 +75,13 @@ export type TcpBandwidthTestConfig = ServerConfig &
   SockperfConfig &
   Iperf3Config;
 
-export type IdleSocketTestConfig = ServerConfig &
-  IdleSocketConfig &
+export type TcpIdleConnectionTestConfig = ServerConfig &
+  IdleConnectionConfig &
+  EchoConfig &
+  DurationConfig;
+
+export type TcpOpenConnectionTestConfig = ServerConfig &
+  OpenConnectionConfig &
   EchoConfig &
   DurationConfig;
 
@@ -74,18 +91,16 @@ export type UdpBandwidthTestConfig = ServerConfig &
   Iperf3UDPConfig &
   Iperf3Config;
 
-export type UdpOpenConnectionTestConfig = ServerConfig & EchoConfig;
+export type UdpIdleSocketTestConfig = ServerConfig &
+  IdleSocketConfig &
+  EchoConfig &
+  DurationConfig;
 
 export type HttpTestConfig = ServerConfig &
   DurationConfig &
   SockperfConfig &
   VegetaConfig &
   NginxConfig;
-
-interface ConnectionResult {
-  status: "success" | "error" | "timeout";
-  duration_ns: number;
-}
 
 async function create_results_folder() {
   const folder = `/results/${new Date().toISOString().replace(/:/g, "-")}`;
@@ -190,16 +205,16 @@ export async function launch_tcp_bandwidth_test(
   logger.info("Finished TCP bandwidth test.");
 }
 
-export async function launch_tcp_idle_socket_test(
-  config: IdleSocketTestConfig,
+export async function launch_tcp_idle_connection_test(
+  config: TcpIdleConnectionTestConfig,
 ) {
-  logger.info("Starting TCP idle sockets test.");
+  logger.info("Starting TCP idle connections test.");
   let socket_timeouts = 0;
   let socket_errors = 0;
 
   const sockets = await Promise.all(
     Array.from(
-      { length: config.idle_socket.concurrent_sockets },
+      { length: config.idle_connection.connections },
       (_, i) =>
         new Promise<net.Socket>((res) => {
           const socket = new net.Socket();
@@ -227,21 +242,20 @@ export async function launch_tcp_idle_socket_test(
                   socket.once("data", (data) => {
                     if (data[0] !== value) {
                       socket_errors++;
-                      socket.end();
+                      socket.destroy();
                     }
                   });
                 },
                 Math.floor(3000 + Math.random() * 4000),
               ); // Random between 3-7 seconds between packets to not timeout connection.
 
-              socket.once("end", () => {
+              socket.once("close", () => {
                 clearInterval(interval_id);
               });
             },
           );
 
-          socket.once("timeout", (e) => {
-            logger.error(e);
+          socket.once("timeout", () => {
             socket_timeouts++;
             res(socket);
           });
@@ -255,28 +269,98 @@ export async function launch_tcp_idle_socket_test(
   );
 
   logger.info(
-    `Testing ${config.idle_socket.concurrent_sockets} idle sockets for ${config.duration_seconds} seconds.`,
+    `Testing ${config.idle_connection.connections} idle connections for ${config.duration_seconds} seconds.`,
   );
 
   await sleep(config.duration_seconds);
 
   sockets.forEach((socket) => {
-    socket.end();
+    socket.destroy();
   });
 
-  logger.info(`Closed sockets.`);
+  logger.info(`Closed connections.`);
 
   logger.info(
-    `Successful sockets: ${config.idle_socket.concurrent_sockets - socket_errors}`,
+    `Successful connections: ${config.idle_connection.connections - socket_errors}`,
   );
-  logger.info(`Failed sockets: ${socket_errors - socket_timeouts}`);
+  logger.info(`Failed connections: ${socket_errors}`);
   logger.info(`Timeout connections: ${socket_timeouts}`);
 
-  logger.info("Finished TCP idle sockets test.");
+  logger.info("Finished TCP idle connections test.");
+}
+
+export async function launch_tcp_open_connections_test(
+  config: TcpOpenConnectionTestConfig,
+) {
+  logger.info("Starting TCP open connections test.");
+
+  let socket_id_counter = 0;
+  let socket_connected = 0;
+  let socket_timeouts = 0;
+  let socket_errors = 0;
+
+  const sockets = new Map<number, Socket>();
+  const open_sockets = () =>
+    Array.from(
+      { length: config.open_connection.connections_per_second },
+      (_, i) => {
+        const socket_id = socket_id_counter++;
+        const socket = new net.Socket();
+
+        sockets.set(socket_id, socket);
+
+        socket.setTimeout(10_000);
+
+        socket.connect(
+          {
+            port: config.echo.port,
+            host: config.server_ip,
+          },
+          () => {
+            socket.end();
+            socket_connected++;
+          },
+        );
+
+        socket.once("close", () => {
+          sockets.delete(socket_id);
+        });
+        socket.once("timeout", () => {
+          socket.destroy();
+          socket_timeouts++;
+        });
+        socket.once("error", (e) => {
+          logger.error(e);
+          socket_errors++;
+        });
+      },
+    );
+
+  let interval_id = setInterval(open_sockets, 1000);
+
+  open_sockets();
+
+  logger.info(
+    `Opening ${config.open_connection.connections_per_second} connections per second for ${config.duration_seconds} seconds.`,
+  );
+
+  await sleep(config.duration_seconds);
+
+  clearInterval(interval_id);
+
+  sockets.forEach((socket) => {
+    socket.destroy();
+  });
+
+  logger.info(`Successful connections: ${socket_connected}`);
+  logger.info(`Failed connections: ${socket_errors}`);
+  logger.info(`Timeout connections: ${socket_timeouts}`);
+
+  logger.info("Finished TCP open connections test.");
 }
 
 export async function launch_udp_idle_socket_test(
-  config: IdleSocketTestConfig,
+  config: UdpIdleSocketTestConfig,
 ) {
   logger.info("Starting UDP idle sockets test.");
 
@@ -286,7 +370,7 @@ export async function launch_udp_idle_socket_test(
 
   const sockets: [dgram.Socket, NodeJS.Timeout][] = await Promise.all(
     Array.from(
-      { length: config.idle_socket.concurrent_sockets },
+      { length: config.idle_socket.sockets },
       () =>
         new Promise<[dgram.Socket, NodeJS.Timeout]>((res) => {
           const socket = dgram.createSocket("udp4");
@@ -319,7 +403,7 @@ export async function launch_udp_idle_socket_test(
   );
 
   logger.info(
-    `Testing ${config.idle_socket.concurrent_sockets} idle sockets for ${config.duration_seconds} seconds.`,
+    `Testing ${config.idle_socket.sockets} idle sockets for ${config.duration_seconds} seconds.`,
   );
 
   await sleep(config.duration_seconds);
@@ -334,7 +418,7 @@ export async function launch_udp_idle_socket_test(
   logger.info(`Datagrams sent: ${datagrams_sent}.`);
   logger.info(`Datagrams received: ${datagrams_received}.`);
   logger.info(
-    `Sockets received datagrams: ${sockets_received_datagrams}/${config.idle_socket.concurrent_sockets}.`,
+    `Sockets received datagrams: ${sockets_received_datagrams}/${config.idle_socket.sockets}.`,
   );
 
   logger.info("Finished UDP idle sockets test.");

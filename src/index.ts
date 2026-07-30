@@ -5,7 +5,7 @@ import {
   launch_http_stress_test,
   launch_tcp_latency_test,
   launch_tcp_bandwidth_test,
-  launch_tcp_idle_socket_test,
+  launch_tcp_idle_connection_test,
   launch_udp_latency_test,
   launch_udp_bandwidth_test,
   launch_udp_idle_socket_test,
@@ -18,6 +18,9 @@ import {
   type EchoConfig,
   type VegetaConfig,
   type IdleSocketConfig,
+  type IdleConnectionConfig,
+  launch_tcp_open_connections_test,
+  type OpenConnectionConfig,
 } from "./client.js";
 import logger from "./logger.js";
 
@@ -96,7 +99,23 @@ function set_echo_options(argv: Argv) {
   });
 }
 
-function set_idle_socket_options(argv: Argv) {
+function set_idle_connections_options(argv: Argv) {
+  return argv.option("idle-connections", {
+    type: "number",
+    describe: "Number of concurrent idle connections to open.",
+    default: 100,
+  });
+}
+
+function set_open_connections_options(argv: Argv) {
+  return argv.option("open-connections", {
+    type: "number",
+    describe: "Number of connections to open per second.",
+    default: 50,
+  });
+}
+
+function set_idle_sockets_options(argv: Argv) {
   return argv.option("idle-sockets", {
     type: "number",
     describe: "Number of concurrent idle sockets to open.",
@@ -134,11 +153,27 @@ const args_to_sockperf_config = (args: ArgumentsCamelCase): SockperfConfig => ({
   },
 });
 
+const args_to_idle_connection_config = (
+  args: ArgumentsCamelCase,
+): IdleConnectionConfig => ({
+  idle_connection: {
+    connections: args["idle-connections"] as number,
+  },
+});
+
+const args_to_open_connection_config = (
+  args: ArgumentsCamelCase,
+): OpenConnectionConfig => ({
+  open_connection: {
+    connections_per_second: args["open-connections"] as number,
+  },
+});
+
 const args_to_idle_socket_config = (
   args: ArgumentsCamelCase,
 ): IdleSocketConfig => ({
   idle_socket: {
-    concurrent_sockets: args["idle-sockets"] as number,
+    sockets: args["idle-sockets"] as number,
   },
 });
 
@@ -235,19 +270,39 @@ await yargs(hideBin(process.argv))
         },
       )
       .command(
-        "idle-sockets",
-        "Test long-lived TCP sockets sending 1 byte at interval of few seconds",
+        "idle-connections",
+        "Test long-lived TCP connections sending 1 byte at interval of few seconds",
         (y) =>
-          set_idle_socket_options(
+          set_idle_connections_options(
             set_echo_options(set_duration_options(set_server_options(y))),
           ),
         async (argv) => {
           try {
-            await launch_tcp_idle_socket_test({
+            await launch_tcp_idle_connection_test({
               ...args_to_server_config(argv),
               ...args_to_duration_config(argv),
               ...args_to_echo_config(argv),
-              ...args_to_idle_socket_config(argv),
+              ...args_to_idle_connection_config(argv),
+            });
+          } catch (err) {
+            logger.error(err);
+          }
+        },
+      )
+      .command(
+        "open-connections",
+        "Open a specific number of TCP connections per second and immediately close the connection once connected",
+        (y) =>
+          set_open_connections_options(
+            set_echo_options(set_duration_options(set_server_options(y))),
+          ),
+        async (argv) => {
+          try {
+            await launch_tcp_open_connections_test({
+              ...args_to_server_config(argv),
+              ...args_to_duration_config(argv),
+              ...args_to_echo_config(argv),
+              ...args_to_open_connection_config(argv),
             });
           } catch (err) {
             logger.error(err);
@@ -306,7 +361,7 @@ await yargs(hideBin(process.argv))
         "idle-sockets",
         "Test long-lived UDP sockets sending 1 byte at interval of few seconds",
         (y) =>
-          set_idle_socket_options(
+          set_idle_sockets_options(
             set_echo_options(set_duration_options(set_server_options(y))),
           ),
         async (argv) => {

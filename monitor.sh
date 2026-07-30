@@ -28,9 +28,10 @@ PROCESS_NAME=$(ps -p $MAIN_PID -o comm=)
 OUTPUT_FILE="${PROCESS_NAME}_pidstat_metrics.json"
 
 cleanup() {
-    kill $PIDSTAT_PID 2>/dev/null
+    kill -SIGINT "$PIDSTAT_PID" 2>/dev/null
+    wait "$PIDSTAT_PID" 2>/dev/null
 
-    kill $MAIN_PID 2>/dev/null
+    kill -SIGTERM $MAIN_PID 2>/dev/null
     wait $MAIN_PID 2>/dev/null
 
     echo "--------------------------------------------------"
@@ -39,9 +40,9 @@ cleanup() {
     exit 0
 }
 
-trap cleanup SIGINT
+trap cleanup SIGINT SIGTERM
 
-pidstat -p $MAIN_PID -u -r 1 -o JSON > "$OUTPUT_FILE" &
+pidstat -p $MAIN_PID -u -r -v 1 -o JSON > "$OUTPUT_FILE" &
 PIDSTAT_PID=$!
 
 wait $PIDSTAT_PID 2>/dev/null
