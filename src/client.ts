@@ -62,6 +62,12 @@ export interface IdleSocketConfig {
   };
 }
 
+export interface OpenSocketConfig {
+  open_socket: {
+    sockets_per_second: number;
+  };
+}
+
 export interface EchoConfig {
   echo: {
     port: number;
@@ -93,6 +99,11 @@ export type UdpBandwidthTestConfig = ServerConfig &
 
 export type UdpIdleSocketTestConfig = ServerConfig &
   IdleSocketConfig &
+  EchoConfig &
+  DurationConfig;
+
+export type UdpOpenSocketTestConfig = ServerConfig &
+  OpenSocketConfig &
   EchoConfig &
   DurationConfig;
 
@@ -215,7 +226,7 @@ export async function launch_tcp_idle_connection_test(
   const sockets = await Promise.all(
     Array.from(
       { length: config.idle_connection.connections },
-      (_, i) =>
+      () =>
         new Promise<net.Socket>((res) => {
           const socket = new net.Socket();
 
@@ -294,20 +305,20 @@ export async function launch_tcp_open_connections_test(
 ) {
   logger.info("Starting TCP open connections test.");
 
-  let socket_id_counter = 0;
-  let socket_connected = 0;
-  let socket_timeouts = 0;
-  let socket_errors = 0;
+  let connection_id_counter = 0;
+  let connected = 0;
+  let timeouts = 0;
+  let errors = 0;
 
-  const sockets = new Map<number, Socket>();
-  const open_sockets = () =>
+  const connections = new Map<number, Socket>();
+  const open_connections = () =>
     Array.from(
       { length: config.open_connection.connections_per_second },
-      (_, i) => {
-        const socket_id = socket_id_counter++;
+      () => {
+        const socket_id = connection_id_counter++;
         const socket = new net.Socket();
 
-        sockets.set(socket_id, socket);
+        connections.set(socket_id, socket);
 
         socket.setTimeout(10_000);
 
@@ -318,27 +329,27 @@ export async function launch_tcp_open_connections_test(
           },
           () => {
             socket.end();
-            socket_connected++;
+            connected++;
           },
         );
 
         socket.once("close", () => {
-          sockets.delete(socket_id);
+          connections.delete(socket_id);
         });
         socket.once("timeout", () => {
           socket.destroy();
-          socket_timeouts++;
+          timeouts++;
         });
         socket.once("error", (e) => {
           logger.error(e);
-          socket_errors++;
+          errors++;
         });
       },
     );
 
-  let interval_id = setInterval(open_sockets, 1000);
+  let interval_id = setInterval(open_connections, 1000);
 
-  open_sockets();
+  open_connections();
 
   logger.info(
     `Opening ${config.open_connection.connections_per_second} connections per second for ${config.duration_seconds} seconds.`,
@@ -348,13 +359,13 @@ export async function launch_tcp_open_connections_test(
 
   clearInterval(interval_id);
 
-  sockets.forEach((socket) => {
+  connections.forEach((socket) => {
     socket.destroy();
   });
 
-  logger.info(`Successful connections: ${socket_connected}`);
-  logger.info(`Failed connections: ${socket_errors}`);
-  logger.info(`Timeout connections: ${socket_timeouts}`);
+  logger.info(`Successful connections: ${connected}`);
+  logger.info(`Failed connections: ${errors}`);
+  logger.info(`Timeout connections: ${timeouts}`);
 
   logger.info("Finished TCP open connections test.");
 }
@@ -431,7 +442,7 @@ export async function launch_udp_latency_test(config: LatencyTestConfig) {
 
   logger.info("Starting UDP latency test.");
 
-  const sockperf = launch_sockperf(config, results_folder, "udp");
+  const sockperf = launch_sockperf(config, results_folder, "tcp");
 
   logger.info("Sockperf started.");
 
@@ -481,6 +492,67 @@ export async function launch_udp_bandwidth_test(
   await Promise.all([iperf3.closed(), sockperf.closed()]);
 
   logger.info("Finished UDP bandwidth test.");
+}
+
+export async function launch_udp_open_sockets_test(
+  config: UdpOpenSocketTestConfig,
+) {
+  logger.info("Starting UDP open sockets test.");
+
+  let socket_id_counter = 0;
+  let socket_connected = 0;
+  let message_sent = 0;
+  let message_received = 0;
+
+  const sockets = new Map<number, dgram.Socket>();
+  const open_sockets = () => {
+    sockets.forEach((socket) => {
+      socket.close();
+    });
+
+    sockets.clear();
+
+    Array.from({ length: config.open_socket.sockets_per_second }, () => {
+      const socket_id = socket_id_counter++;
+      const socket = dgram.createSocket("udp4");
+
+      socket.bind(0, "0.0.0.0", () => {
+        socket_connected++;
+        sockets.set(socket_id, socket);
+
+        Array.from({ length: 3 }, () => {
+          socket.send(Buffer.from([1]), config.echo.port, config.server_ip);
+          message_sent++;
+        });
+
+        socket.on("message", () => {
+          message_received++;
+        });
+      });
+    });
+  };
+
+  let interval_id = setInterval(open_sockets, 1000);
+
+  open_sockets();
+
+  logger.info(
+    `Opening ${config.open_socket.sockets_per_second} sockets per second for ${config.duration_seconds} seconds.`,
+  );
+
+  await sleep(config.duration_seconds);
+
+  clearInterval(interval_id);
+
+  sockets.forEach((socket) => {
+    socket.close();
+  });
+
+  logger.info(`Opened sockets: ${socket_connected}`);
+  logger.info(`Message sent: ${message_sent}`);
+  logger.info(`Message received: ${message_received}`);
+
+  logger.info("Finished UDP open sockets test.");
 }
 
 function launch_sockperf(

@@ -58,6 +58,13 @@ Open a number of UDP sockets and keep them idle for the duration of the test. Ea
 docker run --rm -it -v ./results:/results --network siffleux-benchmark_default siffleux-benchmark:latest udp idle-sockets --ip 192.168.97.4  --idle-sockets 50 --duration 10 --echo-port 9003
 ```
 
+## Open Sockets Per Second
+Open a specific number of UDP sockets per second and immediately send some datagrams to the tunnel.
+
+```bash
+docker run --rm -it -v ./results:/results --network siffleux-benchmark_default siffleux-benchmark:latest udp open-sockets --ip 192.168.97.4 --echo-port 9003 --open-sockets 50 --duration 10
+```
+
 # HTTP Tests
 
 ## Stress

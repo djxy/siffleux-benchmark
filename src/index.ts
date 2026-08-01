@@ -21,6 +21,8 @@ import {
   type IdleConnectionConfig,
   launch_tcp_open_connections_test,
   type OpenConnectionConfig,
+  type OpenSocketConfig,
+  launch_udp_open_sockets_test,
 } from "./client.js";
 import logger from "./logger.js";
 
@@ -123,6 +125,14 @@ function set_idle_sockets_options(argv: Argv) {
   });
 }
 
+function set_open_sockets_options(argv: Argv) {
+  return argv.option("open-sockets", {
+    type: "number",
+    describe: "Number of sockets to open per second.",
+    default: 50,
+  });
+}
+
 const args_to_server_config = (args: ArgumentsCamelCase): ServerConfig => ({
   server_ip: args.ip as string,
 });
@@ -166,6 +176,14 @@ const args_to_open_connection_config = (
 ): OpenConnectionConfig => ({
   open_connection: {
     connections_per_second: args["open-connections"] as number,
+  },
+});
+
+const args_to_open_socket_config = (
+  args: ArgumentsCamelCase,
+): OpenSocketConfig => ({
+  open_socket: {
+    sockets_per_second: args["open-sockets"] as number,
   },
 });
 
@@ -371,6 +389,26 @@ await yargs(hideBin(process.argv))
               ...args_to_duration_config(argv),
               ...args_to_echo_config(argv),
               ...args_to_idle_socket_config(argv),
+            });
+          } catch (err) {
+            logger.error(err);
+          }
+        },
+      )
+      .command(
+        "open-sockets",
+        "Open a specific number of UDP sockets per second and send some datagrams to the tunnel",
+        (y) =>
+          set_open_sockets_options(
+            set_echo_options(set_duration_options(set_server_options(y))),
+          ),
+        async (argv) => {
+          try {
+            await launch_udp_open_sockets_test({
+              ...args_to_server_config(argv),
+              ...args_to_duration_config(argv),
+              ...args_to_echo_config(argv),
+              ...args_to_open_socket_config(argv),
             });
           } catch (err) {
             logger.error(err);

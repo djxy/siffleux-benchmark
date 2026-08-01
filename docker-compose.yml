@@ -69,6 +69,7 @@ services:
     command: ["--client", "/app/config.toml"]
     depends_on:
       - rathole-noise-server
+
   siffleux-server:
     # image: ghcr.io/djxy/siffleux:latest
     image: siffleux
@@ -76,6 +77,8 @@ services:
       - siffleux_server_data:/siffleux
       - ./configs/siffleux/server.toml:/siffleux/config.toml
     command: server --config /siffleux/config.toml
+    networks:
+      - siffleux-net
   siffleux-client:
     # image: ghcr.io/djxy/siffleux:latest
     image: siffleux
@@ -84,10 +87,33 @@ services:
     command: client --config /siffleux/config.toml
     depends_on:
       - siffleux-server
+    networks:
+      - siffleux-net
+  siffleux-network-tester:
+    image: alpine
+    cap_add:
+      - NET_ADMIN
+    network_mode: "service:siffleux-client"
+    depends_on:
+      - siffleux-client
+    command: >
+      sh -c "
+        apk add --no-cache iproute2
+        tc qdisc add dev eth0 root netem delay 30ms 10ms distribution normal loss 2% corrupt 0.5%
+        tc qdisc show dev eth0
+      "
+
   siffleux-benchmark:
     image: siffleux-benchmark:latest
     volumes:
       - ./results:/results
     command: server
+    networks:
+      - siffleux-net
+
 volumes:
   siffleux_server_data:
+
+networks:
+  siffleux-net:
+    driver: bridge
