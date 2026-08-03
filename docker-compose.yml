@@ -79,6 +79,22 @@ services:
     command: server --config /siffleux/config.toml
     networks:
       - siffleux-net
+  siffleux-server-network:
+    image: alpine
+    cap_add:
+      - NET_ADMIN
+    network_mode: "service:siffleux-server"
+    depends_on:
+      - siffleux-server
+    command: >
+      sh -c "
+        apk add --no-cache iproute2
+        tc qdisc del dev eth0 root
+        # tc qdisc add dev eth0 root netem delay 30ms 10ms distribution normal loss 1% corrupt 0%
+        # tc qdisc add dev eth0 root netem delay 30ms 10ms distribution normal
+        # tc qdisc add dev eth0 root netem delay 30ms 0ms distribution normal
+        tc qdisc show dev eth0
+      "
   siffleux-client:
     # image: ghcr.io/djxy/siffleux:latest
     image: siffleux
@@ -89,7 +105,7 @@ services:
       - siffleux-server
     networks:
       - siffleux-net
-  siffleux-network-tester:
+  siffleux-client-network:
     image: alpine
     cap_add:
       - NET_ADMIN
@@ -99,7 +115,10 @@ services:
     command: >
       sh -c "
         apk add --no-cache iproute2
-        tc qdisc add dev eth0 root netem delay 30ms 10ms distribution normal loss 2% corrupt 0.5%
+        tc qdisc del dev eth0 root
+        # tc qdisc add dev eth0 root netem delay 30ms 10ms distribution normal loss 1% corrupt 0%
+        # tc qdisc add dev eth0 root netem delay 30ms 10ms distribution normal
+        # tc qdisc add dev eth0 root netem delay 30ms 0ms distribution normal
         tc qdisc show dev eth0
       "
 

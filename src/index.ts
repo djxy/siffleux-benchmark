@@ -14,7 +14,6 @@ import {
   type Iperf3UDPConfig,
   type NginxConfig,
   type ServerConfig,
-  type SockperfConfig,
   type EchoConfig,
   type VegetaConfig,
   type IdleSocketConfig,
@@ -39,14 +38,6 @@ function set_duration_options(argv: Argv) {
     type: "number",
     describe: "Duration in seconds to test.",
     demandOption: true,
-  });
-}
-
-function set_sockperf_options(argv: Argv) {
-  return argv.option("sockperf-port", {
-    type: "number",
-    describe: "Port of the sockperf server.",
-    default: 11111,
   });
 }
 
@@ -157,12 +148,6 @@ const args_to_iperf3_udp_config = (
   },
 });
 
-const args_to_sockperf_config = (args: ArgumentsCamelCase): SockperfConfig => ({
-  sockperf: {
-    port: args["sockperf-port"] as number,
-  },
-});
-
 const args_to_idle_connection_config = (
   args: ArgumentsCamelCase,
 ): IdleConnectionConfig => ({
@@ -228,7 +213,7 @@ await yargs(hideBin(process.argv))
       "stress",
       "HTTP stress test using Vegeta",
       (y) =>
-        set_sockperf_options(
+        set_echo_options(
           set_nginx_options(
             set_vegeta_options(set_duration_options(set_server_options(y))),
           ),
@@ -240,7 +225,7 @@ await yargs(hideBin(process.argv))
             ...args_to_duration_config(argv),
             ...args_to_vegeta_config(argv),
             ...args_to_nginx_config(argv),
-            ...args_to_sockperf_config(argv),
+            ...args_to_echo_config(argv),
           });
         } catch (err) {
           logger.error(err);
@@ -254,13 +239,13 @@ await yargs(hideBin(process.argv))
         "latency",
         "Measure round-trip latency using sockperf",
         (y) =>
-          set_sockperf_options(set_duration_options(set_server_options(y))),
+          set_echo_options(set_duration_options(set_server_options(y))),
         async (argv) => {
           try {
             await launch_tcp_latency_test({
               ...args_to_server_config(argv),
               ...args_to_duration_config(argv),
-              ...args_to_sockperf_config(argv),
+              ...args_to_echo_config(argv),
             });
           } catch (err) {
             logger.error(err);
@@ -271,7 +256,7 @@ await yargs(hideBin(process.argv))
         "bandwidth",
         "Measure maximum TCP throughput using iperf3 and round-trip latency using sockperf",
         (y) =>
-          set_sockperf_options(
+          set_echo_options(
             set_iperf3_options(set_duration_options(set_server_options(y))),
           ),
         async (argv) => {
@@ -280,7 +265,7 @@ await yargs(hideBin(process.argv))
               ...args_to_server_config(argv),
               ...args_to_duration_config(argv),
               ...args_to_iperf3_config(argv),
-              ...args_to_sockperf_config(argv),
+              ...args_to_echo_config(argv),
             });
           } catch (err) {
             logger.error(err);
@@ -335,13 +320,13 @@ await yargs(hideBin(process.argv))
         "latency",
         "Measure round-trip latency using sockperf",
         (y) =>
-          set_sockperf_options(set_duration_options(set_server_options(y))),
+          set_echo_options(set_duration_options(set_server_options(y))),
         async (argv) => {
           try {
             await launch_udp_latency_test({
               ...args_to_server_config(argv),
               ...args_to_duration_config(argv),
-              ...args_to_sockperf_config(argv),
+              ...args_to_echo_config(argv),
             });
           } catch (err) {
             logger.error(err);
@@ -352,7 +337,7 @@ await yargs(hideBin(process.argv))
         "bandwidth",
         "Measure maximum UDP throughput using iperf3 and round-trip latency using sockperf",
         (y) =>
-          set_sockperf_options(
+          set_echo_options(
             set_iperf3_options(
               set_iperf3_udp_options(
                 set_duration_options(set_server_options(y)),
@@ -364,7 +349,7 @@ await yargs(hideBin(process.argv))
             await launch_udp_bandwidth_test({
               ...args_to_server_config(argv),
               ...args_to_duration_config(argv),
-              ...args_to_sockperf_config(argv),
+              ...args_to_echo_config(argv),
               iperf3: {
                 ...args_to_iperf3_config(argv).iperf3,
                 ...args_to_iperf3_udp_config(argv).iperf3,

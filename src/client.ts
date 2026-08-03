@@ -12,12 +12,6 @@ export interface DurationConfig {
   duration_seconds: number;
 }
 
-export interface SockperfConfig {
-  sockperf: {
-    port: number;
-  };
-}
-
 export interface Iperf3Config {
   iperf3: {
     parallelism: number;
@@ -74,11 +68,11 @@ export interface EchoConfig {
   };
 }
 
-export type LatencyTestConfig = ServerConfig & DurationConfig & SockperfConfig;
+export type LatencyTestConfig = ServerConfig & DurationConfig & EchoConfig;
 
 export type TcpBandwidthTestConfig = ServerConfig &
   DurationConfig &
-  SockperfConfig &
+  EchoConfig &
   Iperf3Config;
 
 export type TcpIdleConnectionTestConfig = ServerConfig &
@@ -93,7 +87,7 @@ export type TcpOpenConnectionTestConfig = ServerConfig &
 
 export type UdpBandwidthTestConfig = ServerConfig &
   DurationConfig &
-  SockperfConfig &
+  EchoConfig &
   Iperf3UDPConfig &
   Iperf3Config;
 
@@ -109,7 +103,7 @@ export type UdpOpenSocketTestConfig = ServerConfig &
 
 export type HttpTestConfig = ServerConfig &
   DurationConfig &
-  SockperfConfig &
+  EchoConfig &
   VegetaConfig &
   NginxConfig;
 
@@ -127,93 +121,67 @@ function handleSigint(...processes: Process[]) {
 }
 
 export async function launch_http_stress_test(config: HttpTestConfig) {
-  const results_folder = await create_results_folder();
-
-  await fs.mkdir(results_folder, { recursive: true });
-
-  logger.info("Starting HTTP test.");
-
-  const sockperf = launch_sockperf(config, results_folder, "tcp");
-
-  logger.info("Sockperf started. Starting vegeta in 2 seconds.");
-
-  await sleep(2);
-
-  const vegeta = Process.spawn({
-    cmd: "sh",
-    args: [
-      "-c",
-      `echo "GET http://${config.server_ip}:${config.nginx.port}" | vegeta attack -max-workers ${config.vegeta.max_workers} -rate 0 -duration ${config.duration_seconds}s | vegeta report -every=1s`,
-    ],
-    name: "vegeta",
-    logs_folder: results_folder,
-  });
-
-  logger.info("Vegeta started.");
-
-  handleSigint(vegeta, sockperf);
-
-  await Promise.all([vegeta.closed(), sockperf.closed()]);
-
-  logger.info("Finished HTTP test.");
+  // const results_folder = await create_results_folder();
+  // await fs.mkdir(results_folder, { recursive: true });
+  // logger.info("Starting HTTP test.");
+  // const sockperf = launch_sockperf(config, results_folder, "tcp");
+  // logger.info("Sockperf started. Starting vegeta in 2 seconds.");
+  // await sleep(2);
+  // const vegeta = Process.spawn({
+  //   cmd: "sh",
+  //   args: [
+  //     "-c",
+  //     `echo "GET http://${config.server_ip}:${config.nginx.port}" | vegeta attack -max-workers ${config.vegeta.max_workers} -rate 0 -duration ${config.duration_seconds}s | vegeta report -every=1s`,
+  //   ],
+  //   name: "vegeta",
+  //   logs_folder: results_folder,
+  // });
+  // logger.info("Vegeta started.");
+  // handleSigint(vegeta, sockperf);
+  // await Promise.all([vegeta.closed(), sockperf.closed()]);
+  // logger.info("Finished HTTP test.");
 }
 
 export async function launch_tcp_latency_test(config: LatencyTestConfig) {
-  const results_folder = await create_results_folder();
-
-  await fs.mkdir(results_folder, { recursive: true });
-
-  logger.info("Starting TCP latency test.");
-
-  const sockperf = launch_sockperf(config, results_folder, "tcp");
-
-  logger.info("Sockperf started.");
-
-  handleSigint(sockperf);
-
-  await Promise.all([sockperf.closed()]);
-
-  logger.info("Finished latency test.");
+  // const results_folder = await create_results_folder();
+  // await fs.mkdir(results_folder, { recursive: true });
+  // logger.info("Starting TCP latency test.");
+  // const sockperf = launch_sockperf(config, results_folder, "tcp");
+  // logger.info("Sockperf started.");
+  // handleSigint(sockperf);
+  // await Promise.all([sockperf.closed()]);
+  // logger.info("Finished latency test.");
 }
 
 export async function launch_tcp_bandwidth_test(
   config: TcpBandwidthTestConfig,
 ) {
-  const results_folder = await create_results_folder();
-
-  logger.info("Starting TCP bandwidth test.");
-
-  const sockperf = launch_sockperf(config, results_folder, "tcp");
-
-  logger.info("Sockperf started. Starting iperf3 in 2 seconds.");
-
-  await sleep(2);
-
-  const iperf3 = Process.spawn({
-    cmd: "iperf3",
-    args: [
-      "-c",
-      config.server_ip,
-      "-p",
-      `${config.iperf3.port}`,
-      "-P",
-      `${config.iperf3.parallelism}`,
-      "-t",
-      `${config.duration_seconds}`,
-      "--bidir",
-      "-b",
-      `${config.iperf3.bandwidth}`,
-    ],
-    logs_folder: results_folder,
-  });
-
-  logger.info("Iperf3 started.");
-
-  handleSigint(iperf3, sockperf);
-
-  await Promise.all([iperf3.closed(), sockperf.closed()]);
-
-  logger.info("Finished TCP bandwidth test.");
+  // const results_folder = await create_results_folder();
+  // logger.info("Starting TCP bandwidth test.");
+  // const sockperf = launch_sockperf(config, results_folder, "tcp");
+  // logger.info("Sockperf started. Starting iperf3 in 2 seconds.");
+  // await sleep(2);
+  // const iperf3 = Process.spawn({
+  //   cmd: "iperf3",
+  //   args: [
+  //     "-c",
+  //     config.server_ip,
+  //     "-p",
+  //     `${config.iperf3.port}`,
+  //     "-P",
+  //     `${config.iperf3.parallelism}`,
+  //     "-t",
+  //     `${config.duration_seconds}`,
+  //     "--bidir",
+  //     "-b",
+  //     `${config.iperf3.bandwidth}`,
+  //   ],
+  //   logs_folder: results_folder,
+  // });
+  // logger.info("Iperf3 started.");
+  // handleSigint(iperf3, sockperf);
+  // await Promise.all([iperf3.closed(), sockperf.closed()]);
+  // logger.info("Finished TCP bandwidth test.");
 }
 
 export async function launch_tcp_idle_connection_test(
@@ -442,13 +410,14 @@ export async function launch_udp_latency_test(config: LatencyTestConfig) {
 
   logger.info("Starting UDP latency test.");
 
-  const sockperf = launch_sockperf(config, results_folder, "tcp");
+  // const sockperf = launch_sockperf(config, results_folder, "udp");
+  const sockperf = start_udp_latency(config);
 
   logger.info("Sockperf started.");
 
-  handleSigint(sockperf);
+  // handleSigint(sockperf);
 
-  await Promise.all([sockperf.closed()]);
+  await Promise.all([sockperf]);
 
   logger.info("Finished latency test.");
 }
@@ -460,7 +429,7 @@ export async function launch_udp_bandwidth_test(
 
   logger.info("Starting UDP bandwidth test.");
 
-  const sockperf = launch_sockperf(config, results_folder, "udp");
+  // const sockperf = launch_sockperf(config, results_folder, "udp");
 
   logger.info("Sockperf started. Starting iperf3 in 2 seconds.");
 
@@ -487,9 +456,15 @@ export async function launch_udp_bandwidth_test(
 
   logger.info("Iperf3 started.");
 
-  handleSigint(iperf3, sockperf);
+  handleSigint(
+    iperf3,
+    // sockperf
+  );
 
-  await Promise.all([iperf3.closed(), sockperf.closed()]);
+  await Promise.all([
+    iperf3.closed(),
+    // sockperf.closed()
+  ]);
 
   logger.info("Finished UDP bandwidth test.");
 }
@@ -555,29 +530,110 @@ export async function launch_udp_open_sockets_test(
   logger.info("Finished UDP open sockets test.");
 }
 
-function launch_sockperf(
-  config: ServerConfig & DurationConfig & SockperfConfig,
-  results_folder: string,
-  protocol: "udp" | "tcp",
-) {
-  const args = [
-    "ping-pong",
-    "-i",
-    config.server_ip,
-    "-p",
-    `${config.sockperf.port}`,
-    "-t",
-    `${config.duration_seconds + 2}`,
-    "--debug",
-  ];
+function start_udp_latency(config: ServerConfig & DurationConfig & EchoConfig) {
+  const socket = dgram.createSocket("udp4");
+  const max_sequence = config.duration_seconds * 100;
+  const sequences_sent = new BigInt64Array(max_sequence);
+  const sequences_received = new BigInt64Array(max_sequence);
+  let sequence_counter = 0;
+  let duplicated_messages = 0;
+  let is_running = true;
 
-  if (protocol === "tcp") {
-    args.push("--tcp");
-  }
+  socket.on("message", (msg) => {
+    const received_at = process.hrtime.bigint();
+    const sequence = msg.readInt32BE();
 
-  return Process.spawn({
-    cmd: "sockperf",
-    args,
-    logs_folder: results_folder,
+    if (sequence >= max_sequence) {
+      return;
+    }
+
+    if (!sequences_received[sequence]) {
+      sequences_received[sequence] = received_at;
+    } else {
+      duplicated_messages++;
+    }
+  });
+
+  const buffer = Buffer.allocUnsafe(4);
+
+  const send_message = () => {
+    if (is_running) {
+      setTimeout(send_message, 9);
+    }
+
+    const sequence = sequence_counter++;
+
+    buffer.writeInt32BE(sequence, 0);
+
+    const sent_at = process.hrtime.bigint();
+
+    socket.send(buffer, config.echo.port, config.server_ip);
+
+    sequences_sent[sequence] = sent_at;
+  };
+
+  send_message();
+
+  process.on("SIGINT", () => {
+    socket.close();
+  });
+
+  return new Promise(async (res) => {
+    await sleep(config.duration_seconds);
+
+    is_running = false;
+
+    await sleep(1);
+
+    socket.close();
+
+    let loss_responses = 0;
+    let rtt = [];
+    let total_rtt = 0;
+
+    for (let seq = 0; seq < sequences_sent.length; seq++) {
+      const sent_at = sequences_sent[seq] as bigint;
+      const received_at = sequences_received[seq];
+
+      if (received_at) {
+        let duration = Number(received_at - sent_at) / 1e6;
+        total_rtt += duration;
+        rtt.push(duration);
+      } else {
+        loss_responses++;
+      }
+    }
+
+    rtt.sort((a, b) => a - b);
+
+    const get_percentile = (p: number) => {
+      if (rtt.length === 0) return 0;
+
+      return rtt[Math.max(0, Math.ceil((p / 100) * rtt.length) - 1)] as number;
+    };
+
+    const total_messages_sent = sequences_sent.length;
+    const loss_rate = ((loss_responses / total_messages_sent) * 100).toFixed(2);
+
+    logger.info(`===== Report =====`);
+    logger.info(`Loss Messages:    ${loss_responses} (${loss_rate}%)`);
+    logger.info(`Total Sent:       ${total_messages_sent}`);
+    logger.info(`Total Received:   ${rtt.length}`);
+    logger.info(`Total Duplicated: ${duplicated_messages}`);
+    logger.info(`avg: ${(total_rtt / rtt.length).toFixed(3)} ms`);
+    logger.info(`max: ${get_percentile(100).toFixed(3)} ms`);
+    logger.info(`min: ${get_percentile(0).toFixed(3)} ms`);
+    logger.info(`===== RTT Percentiles =====`);
+    logger.info(`p99.999: ${get_percentile(99.999).toFixed(3)} ms`);
+    logger.info(`p99.990: ${get_percentile(99.99).toFixed(3)} ms`);
+    logger.info(`p99.900: ${get_percentile(99.9).toFixed(3)} ms`);
+    logger.info(`p99.000: ${get_percentile(99).toFixed(3)} ms`);
+    logger.info(`p95.000: ${get_percentile(95).toFixed(3)} ms`);
+    logger.info(`p90.000: ${get_percentile(90).toFixed(3)} ms`);
+    logger.info(`p75.000: ${get_percentile(75).toFixed(3)} ms`);
+    logger.info(`p50.000: ${get_percentile(50).toFixed(3)} ms`);
+    logger.info(`p25.000: ${get_percentile(25).toFixed(3)} ms`);
+
+    res(undefined);
   });
 }
