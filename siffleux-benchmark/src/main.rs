@@ -1,7 +1,6 @@
 mod cli;
 
-use std::collections::HashMap;
-use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
+use std::net::{SocketAddr, TcpListener, ToSocketAddrs, UdpSocket};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -10,9 +9,16 @@ use log::{error, info};
 
 use crate::cli::{Cli, Commands, UdpLatencyArgs};
 
-fn run_server(bind_addr: SocketAddr) {
-    let socket = UdpSocket::bind(bind_addr).expect("Failed to bind UDP servers socket.");
-    info!("Server listening on {}", bind_addr);
+fn start_server(bind_addr: SocketAddr) {
+    thread::spawn(move || {
+        let listener = TcpListener::bind(bind_addr).expect("Failed to bind TCP server socket.");
+        info!("TCP server listening on {}", bind_addr);
+
+        while let Ok((stream, src)) = listener.accept() {}
+    });
+
+    let socket = UdpSocket::bind(bind_addr).expect("Failed to bind UDP server socket.");
+    info!("UDP server listening on {}", bind_addr);
     let mut buf = [0u8; 1024];
 
     loop {
@@ -22,7 +28,7 @@ fn run_server(bind_addr: SocketAddr) {
     }
 }
 
-fn run_client(server_addr: SocketAddr, args: UdpLatencyArgs) {
+fn start_udp_latency_test(server_addr: SocketAddr, args: UdpLatencyArgs) {
     let total_messages = (args.mps * args.duration) as usize;
 
     info!("Server:                  {}", server_addr);
@@ -44,43 +50,41 @@ fn run_client(server_addr: SocketAddr, args: UdpLatencyArgs) {
 
     payload.copy_from_slice(&u32::MAX.to_be_bytes());
 
-    let warmup_duration = Duration::from_secs(1);
+    let warmup_duration = Duration::from_millis(400);
     let warmup_start = Instant::now();
 
     info!("Starting warmup");
-    let mut t = 0;
 
-    for _ in 0..20 {
+    loop {
         let _ = socket.send(&payload);
         let _ = socket.recv(&mut payload);
-        t += 1;
+
         if warmup_start.elapsed() >= warmup_duration {
             break;
         }
     }
 
-    info!(
-        "Warmup duration: {:8.2} µs",
-        warmup_start.elapsed().as_nanos() as f64 / 1000.0
-    );
-
-    info!("Warmup messages sent: {}", t);
+    info!("Warmup duration: {:?}", warmup_start.elapsed());
 
     thread::sleep(Duration::from_millis(100));
 
     let receiver_socket = socket.try_clone().expect("Failed to clone socket");
 
     let receiver_handle = thread::spawn(move || {
-        let mut ids_received_at: HashMap<usize, Instant> = HashMap::with_capacity(total_messages);
+        let mut ids_received_at: Vec<Option<Instant>> = vec![None; total_messages];
         let mut buf = [0u8; 1024];
 
         loop {
             match receiver_socket.recv(&mut buf) {
                 Ok(_) => {
                     let received_at = Instant::now();
-                    let id = u32::from_be_bytes(buf[..4].try_into().unwrap()) as usize;
+                    let id = u32::from_be_bytes(buf[..4].try_into().unwrap());
 
-                    ids_received_at.insert(id, received_at);
+                    if id == u32::MAX {
+                        continue;
+                    }
+
+                    ids_received_at[id as usize] = Some(received_at);
                 }
                 Err(_) => {
                     return ids_received_at;
@@ -124,13 +128,13 @@ fn run_client(server_addr: SocketAddr, args: UdpLatencyArgs) {
 
     let ids_received_at = receiver_handle.join().expect("Receiver thread panicked");
     let mut messages_loss = 0;
-    let mut rtt: Vec<f64> = Vec::new();
+    let mut rtt: Vec<Duration> = Vec::new();
 
     for id in 0..ids_sent_at.len() {
         let sent_at = ids_sent_at.get(id).unwrap();
 
-        if let Some(received_at) = ids_received_at.get(&id) {
-            rtt.push(received_at.duration_since(*sent_at).as_nanos() as f64 / 1000.0);
+        if let Some(received_at) = ids_received_at[id] {
+            rtt.push(received_at.duration_since(*sent_at));
         } else {
             messages_loss += 1;
         }
@@ -146,21 +150,21 @@ fn run_client(server_addr: SocketAddr, args: UdpLatencyArgs) {
 
     rtt.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-    let calc_percentile = |p: f64| -> f64 {
+    let calc_percentile = |p: f64| -> &Duration {
         let idx = ((rtt.len() as f64 * p).floor() as usize).min(rtt.len() - 1);
-        rtt[idx]
+        &rtt[idx]
     };
 
-    info!("--- Latency Results (Microseconds µs) ---");
-    info!("Min:    {:8.2} µs", rtt.first().unwrap());
-    info!("p25.00: {:8.2} µs", calc_percentile(0.25));
-    info!("p50.00: {:8.2} µs", calc_percentile(0.50));
-    info!("p75.00: {:8.2} µs", calc_percentile(0.75));
-    info!("p90.00: {:8.2} µs", calc_percentile(0.90));
-    info!("p99.00: {:8.2} µs", calc_percentile(0.99));
-    info!("p99.90: {:8.2} µs", calc_percentile(0.999));
-    info!("p99.99: {:8.2} µs", calc_percentile(0.9999));
-    info!("Max:    {:8.2} µs", rtt.last().unwrap());
+    info!("--- Latency Results ---");
+    info!("Min:    {:?}", rtt.first().unwrap());
+    info!("p25.00: {:?}", calc_percentile(0.25));
+    info!("p50.00: {:?}", calc_percentile(0.50));
+    info!("p75.00: {:?}", calc_percentile(0.75));
+    info!("p90.00: {:?}", calc_percentile(0.90));
+    info!("p99.00: {:?}", calc_percentile(0.99));
+    info!("p99.90: {:?}", calc_percentile(0.999));
+    info!("p99.99: {:?}", calc_percentile(0.9999));
+    info!("Max:    {:?}", rtt.last().unwrap());
 }
 
 fn main() {
@@ -169,10 +173,10 @@ fn main() {
 
     match cli.command {
         Commands::Server(args) => {
-            run_server(SocketAddr::new(args.ip, args.port));
+            start_server(SocketAddr::new(args.ip, args.port));
         }
         Commands::UdpLatency(args) => {
-            run_client(
+            start_udp_latency_test(
                 format!("{}:{}", args.server, args.port)
                     .to_socket_addrs()
                     .unwrap()
