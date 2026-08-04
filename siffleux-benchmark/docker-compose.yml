@@ -6,7 +6,7 @@ services:
       - siffleux-net
   siffleux-client:
     image: siffleux-benchmark-test
-    command: udp-latency --server siffleux-server --mps 1000 -t 20
+    command: udp-latency --server siffleux-server --mps 10000 -t 20
     environment:
       - RUST_LOG=INFO
     depends_on:

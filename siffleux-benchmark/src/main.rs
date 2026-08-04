@@ -29,7 +29,7 @@ fn start_server(bind_addr: SocketAddr) {
 }
 
 fn start_udp_latency_test(server_addr: SocketAddr, args: UdpLatencyArgs) {
-    let total_messages = (args.mps * args.duration) as usize;
+    let total_messages = args.mps * args.duration;
 
     info!("Server:                  {}", server_addr);
     info!("Duration:                {}s", args.duration);
@@ -97,7 +97,7 @@ fn start_udp_latency_test(server_addr: SocketAddr, args: UdpLatencyArgs) {
     let mut id_counter: u32 = 0;
     let mut payload = [0u8; 4];
     let test_duration = Duration::from_secs(args.duration as u64);
-    let sleep_duration = Duration::from_micros((1e6 / args.mps as f64).floor() as u64);
+    let sleep_duration = Duration::from_millis(1);
     let start = Instant::now();
 
     loop {

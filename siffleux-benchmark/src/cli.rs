@@ -43,10 +43,10 @@ pub struct UdpLatencyArgs {
 
     /// Duration in seconds the latency test should be
     #[arg(long, short = 't', default_value_t = 30)]
-    pub duration: u16,
+    pub duration: usize,
 
     /// The number of messages per second to send
     /// It isn't a guaranteed number, just an approximation
     #[arg(long, default_value_t = 1000)]
-    pub mps: u16,
+    pub mps: usize,
 }
