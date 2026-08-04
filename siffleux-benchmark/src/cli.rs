@@ -17,7 +17,7 @@ pub enum Commands {
     /// Start the TCP and UDP echo servers
     Server(ServerAgrs),
     /// Start testing latency over UDP
-    UdpLatency(UdpLatencyAgrs),
+    UdpLatency(UdpLatencyArgs),
 }
 
 #[derive(Args)]
@@ -32,7 +32,7 @@ pub struct ServerAgrs {
 }
 
 #[derive(Args)]
-pub struct UdpLatencyAgrs {
+pub struct UdpLatencyArgs {
     /// IP address or the hostname of the UDP echo server
     #[arg(long, short = 's')]
     pub server: String,
