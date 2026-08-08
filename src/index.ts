@@ -1,6 +1,6 @@
 import yargs, { type Argv, type ArgumentsCamelCase } from "yargs";
 import { hideBin } from "yargs/helpers";
-import { launch_server } from "./server.js";
+import { launch_server } from "./test-server.js";
 import {
   launch_http_stress_test,
   launch_tcp_latency_test,
@@ -23,8 +23,9 @@ import {
   type OpenSocketConfig,
   launch_udp_open_sockets_test,
   type SiffleConfig,
-} from "./client.js";
+} from "./test-client.js";
 import logger from "./logger.js";
+import { launch_tunnel_manager } from "./tunnel.js";
 
 function set_server_options(argv: Argv) {
   return argv.option("ip", {
@@ -216,6 +217,13 @@ const args_to_vegeta_config = (args: ArgumentsCamelCase): VegetaConfig => ({
 await yargs(hideBin(process.argv))
   .scriptName("benchmark")
   .usage("$0 <command> [options]")
+  .command("tunnel", "Start the HTTP server managing the tunnels", async () => {
+    try {
+      launch_tunnel_manager();
+    } catch (err) {
+      logger.error(err);
+    }
+  })
   .command("server", "Start the benchmark server daemon", async () => {
     try {
       await launch_server();

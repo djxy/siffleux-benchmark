@@ -1,12 +1,11 @@
 import { spawn, type ChildProcess } from "child_process";
 import fs from "fs";
-import path from "path";
 
 export interface ProcessOptions {
   cmd: string;
   args: string[];
-  name?: string;
-  logs_folder?: string;
+  stdout_file?: string;
+  stderr_file?: string;
 }
 
 export function sleep(seconds: number) {
@@ -25,20 +24,27 @@ export class Process {
   }
 
   private constructor(opt: ProcessOptions) {
-    const name = opt.name ?? opt.cmd;
+    const stdout = opt.stdout_file ? fs.openSync(opt.stdout_file, "a") : 'inherit';
+    const stderr = opt.stderr_file ? fs.openSync(opt.stderr_file, "a") : 'inherit';
+
     this.#spawned_process = spawn(opt.cmd, opt.args, {
-      stdio: [
-        "ignore",
-        opt.logs_folder
-          ? fs.openSync(path.join(opt.logs_folder, `${name}.log`), "a")
-          : "inherit",
-        "inherit",
-      ],
+      stdio: ["ignore", stdout, stderr],
     });
 
     this.#spawned_process.on("close", (_) => {
+      if (typeof stderr === 'number') {
+        fs.closeSync(stderr);
+      }
+      if (typeof stdout === 'number') {
+        fs.closeSync(stdout);
+      }
+
       this.#is_closed = true;
     });
+  }
+
+  pid() {
+    return this.#spawned_process.pid as number;
   }
 
   kill() {
@@ -46,6 +52,10 @@ export class Process {
   }
 
   closed() {
+    if (this.#is_closed) {
+      return Promise.resolve();
+    }
+
     return new Promise((res, rej) => {
       this.#spawned_process.on("close", (_) => {
         res(null);

@@ -161,7 +161,7 @@ export async function launch_tcp_latency_test(config: LatencyTestConfig) {
 
   handleSigint(siffle);
 
-  await Promise.all([siffle]);
+  await Promise.all([siffle.closed()]);
 
   logger.info("Finished latency test.");
 }
@@ -429,7 +429,7 @@ export async function launch_udp_latency_test(config: LatencyTestConfig) {
 
   handleSigint(siffle);
 
-  await Promise.all([siffle]);
+  await Promise.all([siffle.closed()]);
 
   logger.info("Finished latency test.");
 }
@@ -463,7 +463,6 @@ export async function launch_udp_bandwidth_test(
       "-l",
       `${config.iperf3.payload_size}`,
     ],
-    logs_folder: results_folder,
   });
 
   logger.info("Iperf3 started.");
@@ -559,6 +558,5 @@ function launch_siffle(
       `${config.duration_seconds + 2}`,
       "--mps=1000",
     ],
-    logs_folder: results_folder,
   });
 }
