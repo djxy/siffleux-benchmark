@@ -7,7 +7,7 @@ type = "noise"
 [server.transport.noise]
 local_private_key = "cQ/vwIqNPJZmuM/OikglzBo/+jlYGrOt9i0k5h5vn1Q="
 
-[server.services.sockperf]
+[server.services.siffle]
 token = "secret!123"
 bind_addr = "0.0.0.0:9000"
 

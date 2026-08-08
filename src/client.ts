@@ -38,6 +38,12 @@ export interface NginxConfig {
   };
 }
 
+export interface SiffleConfig {
+  siffle: {
+    port: number;
+  };
+}
+
 export interface IdleConnectionConfig {
   idle_connection: {
     connections: number;
@@ -68,7 +74,7 @@ export interface EchoConfig {
   };
 }
 
-export type LatencyTestConfig = ServerConfig & DurationConfig & EchoConfig;
+export type LatencyTestConfig = ServerConfig & DurationConfig & SiffleConfig;
 
 export type TcpBandwidthTestConfig = ServerConfig &
   DurationConfig &
@@ -143,14 +149,21 @@ export async function launch_http_stress_test(config: HttpTestConfig) {
 }
 
 export async function launch_tcp_latency_test(config: LatencyTestConfig) {
-  // const results_folder = await create_results_folder();
-  // await fs.mkdir(results_folder, { recursive: true });
-  // logger.info("Starting TCP latency test.");
-  // const sockperf = launch_sockperf(config, results_folder, "tcp");
-  // logger.info("Sockperf started.");
-  // handleSigint(sockperf);
-  // await Promise.all([sockperf.closed()]);
-  // logger.info("Finished latency test.");
+  const results_folder = await create_results_folder();
+
+  await fs.mkdir(results_folder, { recursive: true });
+
+  logger.info("Starting TCP latency test.");
+
+  const siffle = launch_siffle(config, results_folder, "tcp");
+
+  logger.info("Siffle started.");
+
+  handleSigint(siffle);
+
+  await Promise.all([siffle]);
+
+  logger.info("Finished latency test.");
 }
 
 export async function launch_tcp_bandwidth_test(
@@ -410,14 +423,13 @@ export async function launch_udp_latency_test(config: LatencyTestConfig) {
 
   logger.info("Starting UDP latency test.");
 
-  // const sockperf = launch_sockperf(config, results_folder, "udp");
-  const sockperf = start_udp_latency(config);
+  const siffle = launch_siffle(config, results_folder, "udp");
 
-  logger.info("Sockperf started.");
+  logger.info("Siffle started.");
 
-  // handleSigint(sockperf);
+  handleSigint(siffle);
 
-  await Promise.all([sockperf]);
+  await Promise.all([siffle]);
 
   logger.info("Finished latency test.");
 }
@@ -530,110 +542,23 @@ export async function launch_udp_open_sockets_test(
   logger.info("Finished UDP open sockets test.");
 }
 
-function start_udp_latency(config: ServerConfig & DurationConfig & EchoConfig) {
-  const socket = dgram.createSocket("udp4");
-  const max_sequence = config.duration_seconds * 100;
-  const sequences_sent = new BigInt64Array(max_sequence);
-  const sequences_received = new BigInt64Array(max_sequence);
-  let sequence_counter = 0;
-  let duplicated_messages = 0;
-  let is_running = true;
-
-  socket.on("message", (msg) => {
-    const received_at = process.hrtime.bigint();
-    const sequence = msg.readInt32BE();
-
-    if (sequence >= max_sequence) {
-      return;
-    }
-
-    if (!sequences_received[sequence]) {
-      sequences_received[sequence] = received_at;
-    } else {
-      duplicated_messages++;
-    }
-  });
-
-  const buffer = Buffer.allocUnsafe(4);
-
-  const send_message = () => {
-    if (is_running) {
-      setTimeout(send_message, 9);
-    }
-
-    const sequence = sequence_counter++;
-
-    buffer.writeInt32BE(sequence, 0);
-
-    const sent_at = process.hrtime.bigint();
-
-    socket.send(buffer, config.echo.port, config.server_ip);
-
-    sequences_sent[sequence] = sent_at;
-  };
-
-  send_message();
-
-  process.on("SIGINT", () => {
-    socket.close();
-  });
-
-  return new Promise(async (res) => {
-    await sleep(config.duration_seconds);
-
-    is_running = false;
-
-    await sleep(1);
-
-    socket.close();
-
-    let loss_responses = 0;
-    let rtt = [];
-    let total_rtt = 0;
-
-    for (let seq = 0; seq < sequences_sent.length; seq++) {
-      const sent_at = sequences_sent[seq] as bigint;
-      const received_at = sequences_received[seq];
-
-      if (received_at) {
-        let duration = Number(received_at - sent_at) / 1e6;
-        total_rtt += duration;
-        rtt.push(duration);
-      } else {
-        loss_responses++;
-      }
-    }
-
-    rtt.sort((a, b) => a - b);
-
-    const get_percentile = (p: number) => {
-      if (rtt.length === 0) return 0;
-
-      return rtt[Math.max(0, Math.ceil((p / 100) * rtt.length) - 1)] as number;
-    };
-
-    const total_messages_sent = sequences_sent.length;
-    const loss_rate = ((loss_responses / total_messages_sent) * 100).toFixed(2);
-
-    logger.info(`===== Report =====`);
-    logger.info(`Loss Messages:    ${loss_responses} (${loss_rate}%)`);
-    logger.info(`Total Sent:       ${total_messages_sent}`);
-    logger.info(`Total Received:   ${rtt.length}`);
-    logger.info(`Total Duplicated: ${duplicated_messages}`);
-    logger.info(`avg: ${(total_rtt / rtt.length).toFixed(3)} ms`);
-    logger.info(`max: ${get_percentile(100).toFixed(3)} ms`);
-    logger.info(`min: ${get_percentile(0).toFixed(3)} ms`);
-    logger.info(`===== RTT Percentiles =====`);
-    logger.info(`p99.999: ${get_percentile(99.999).toFixed(3)} ms`);
-    logger.info(`p99.990: ${get_percentile(99.99).toFixed(3)} ms`);
-    logger.info(`p99.900: ${get_percentile(99.9).toFixed(3)} ms`);
-    logger.info(`p99.000: ${get_percentile(99).toFixed(3)} ms`);
-    logger.info(`p95.000: ${get_percentile(95).toFixed(3)} ms`);
-    logger.info(`p90.000: ${get_percentile(90).toFixed(3)} ms`);
-    logger.info(`p75.000: ${get_percentile(75).toFixed(3)} ms`);
-    logger.info(`p50.000: ${get_percentile(50).toFixed(3)} ms`);
-    logger.info(`p25.000: ${get_percentile(25).toFixed(3)} ms`);
-
-    res(undefined);
+function launch_siffle(
+  config: ServerConfig & DurationConfig & SiffleConfig,
+  results_folder: string,
+  protocol: "udp" | "tcp",
+) {
+  return Process.spawn({
+    cmd: "siffle",
+    args: [
+      protocol,
+      "-s",
+      config.server_ip,
+      "-p",
+      `${config.siffle.port}`,
+      "-t",
+      `${config.duration_seconds + 2}`,
+      "--mps=1000",
+    ],
+    logs_folder: results_folder,
   });
 }

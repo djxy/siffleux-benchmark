@@ -22,6 +22,7 @@ import {
   type OpenConnectionConfig,
   type OpenSocketConfig,
   launch_udp_open_sockets_test,
+  type SiffleConfig,
 } from "./client.js";
 import logger from "./logger.js";
 
@@ -89,6 +90,14 @@ function set_echo_options(argv: Argv) {
     type: "number",
     describe: "Port of the Echo server.",
     default: 5000,
+  });
+}
+
+function set_siffle_options(argv: Argv) {
+  return argv.option("siffle-port", {
+    type: "number",
+    describe: "Port of the Siffle server.",
+    default: 5678,
   });
 }
 
@@ -186,6 +195,12 @@ const args_to_echo_config = (args: ArgumentsCamelCase): EchoConfig => ({
   },
 });
 
+const args_to_siffle_config = (args: ArgumentsCamelCase): SiffleConfig => ({
+  siffle: {
+    port: args["siffle-port"] as number,
+  },
+});
+
 const args_to_nginx_config = (args: ArgumentsCamelCase): NginxConfig => ({
   nginx: {
     port: args["nginx-port"] as number,
@@ -239,13 +254,13 @@ await yargs(hideBin(process.argv))
         "latency",
         "Measure round-trip latency using sockperf",
         (y) =>
-          set_echo_options(set_duration_options(set_server_options(y))),
+          set_siffle_options(set_duration_options(set_server_options(y))),
         async (argv) => {
           try {
             await launch_tcp_latency_test({
               ...args_to_server_config(argv),
               ...args_to_duration_config(argv),
-              ...args_to_echo_config(argv),
+              ...args_to_siffle_config(argv),
             });
           } catch (err) {
             logger.error(err);
@@ -320,13 +335,13 @@ await yargs(hideBin(process.argv))
         "latency",
         "Measure round-trip latency using sockperf",
         (y) =>
-          set_echo_options(set_duration_options(set_server_options(y))),
+          set_siffle_options(set_duration_options(set_server_options(y))),
         async (argv) => {
           try {
             await launch_udp_latency_test({
               ...args_to_server_config(argv),
               ...args_to_duration_config(argv),
-              ...args_to_echo_config(argv),
+              ...args_to_siffle_config(argv),
             });
           } catch (err) {
             logger.error(err);

@@ -4,10 +4,10 @@ serverPort = 7000
 transport.protocol = "quic"
 
 [[proxies]]
-name = "sockperf"
+name = "siffle"
 type = "tcp"
 localIP = "siffleux-benchmark"
-localPort = 11111
+localPort = 5678
 remotePort = 9000
 
 [[proxies]]

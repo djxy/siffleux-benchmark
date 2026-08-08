@@ -1,12 +1,12 @@
 id = "siffleux-server"
 
 [[tcp_ingress]]
-id = "sockperf-tcp"
+id = "siffle-tcp"
 port = 9000
 auth_key = "secret!123"
 
 [[udp_ingress]]
-id = "sockperf-udp"
+id = "siffle-udp"
 port = 9000
 auth_key = "secret!123"
 

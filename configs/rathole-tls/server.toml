@@ -8,7 +8,7 @@ type = "tls"
 pkcs12 = "/app/certs/identity.pfx"
 pkcs12_password = "secret_password"
 
-[server.services.sockperf]
+[server.services.siffle]
 token = "secret!123"
 bind_addr = "0.0.0.0:9000"
 

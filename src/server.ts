@@ -8,13 +8,9 @@ export async function launch_server() {
 
   const nginx = Process.spawn({ cmd: "nginx", args: ["-g", "daemon off;"] });
   const iperf3 = Process.spawn({ cmd: "iperf3", args: ["-s", "-p", "5201"] });
-  const sockperf_tcp = Process.spawn({
-    cmd: "sockperf",
-    args: ["server", "--tcp", "-p", "11111"],
-  });
-  const sockperf_udp = Process.spawn({
-    cmd: "sockperf",
-    args: ["server", "-p", "11111"],
+  const siffle = Process.spawn({
+    cmd: "siffle",
+    args: ["server"],
   });
   const tcp_echo = new TcpEchoServer();
   const udp_echo = new UdpEchoServer();
@@ -22,13 +18,12 @@ export async function launch_server() {
   await tcp_echo.start();
   await udp_echo.start();
 
-  logger.info("Nginx, iperf3, sockperf and TCP/UDP echo ready");
+  logger.info("Nginx, iperf3, siffle and TCP/UDP echo ready");
 
   process.on("SIGINT", () => {
     nginx.kill();
     iperf3.kill();
-    sockperf_tcp.kill();
-    sockperf_udp.kill();
+    siffle.kill();
     tcp_echo.stop();
     udp_echo.stop();
   });
@@ -36,8 +31,7 @@ export async function launch_server() {
   await Promise.all([
     nginx.closed(),
     iperf3.closed(),
-    sockperf_tcp.closed(),
-    sockperf_udp.closed(),
+    siffle.closed(),
   ]);
 
   logger.info("Closed server");

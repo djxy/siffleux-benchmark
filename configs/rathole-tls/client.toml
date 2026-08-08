@@ -8,9 +8,9 @@ type = "tls"
 trusted_root = "/app/certs/ca.pem"
 hostname = "rathole"
 
-[client.services.sockperf]
+[client.services.siffle]
 token = "secret!123"
-local_addr = "siffleux-benchmark:11111"
+local_addr = "siffleux-benchmark:5678"
 
 [client.services.nginx]
 token = "secret!123"
