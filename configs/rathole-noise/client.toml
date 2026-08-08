@@ -9,16 +9,16 @@ remote_public_key = "GQYTKSbWLBUSZiGfdWPSgek9yoOuaiwGD/GIX8Z1kkE="
 
 [client.services.siffle]
 token = "secret!123"
-local_addr = "siffleux-benchmark:5678"
+local_addr = "tunnel-server:5678"
 
 [client.services.nginx]
 token = "secret!123"
-local_addr = "siffleux-benchmark:80"
+local_addr = "tunnel-server:80"
 
 [client.services.iperf3]
 token = "secret!123"
-local_addr = "siffleux-benchmark:5201"
+local_addr = "tunnel-server:5201"
 
 [client.services.tcp_echo]
 token = "secret!123"
-local_addr = "siffleux-benchmark:3001"
+local_addr = "tunnel-server:3001"

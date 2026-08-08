@@ -3,6 +3,22 @@ import { Process, sleep } from "./process.js";
 import fs from "fs/promises";
 import net, { Socket } from "net";
 import dgram from "dgram";
+import type { StartTunnelConfig } from "./tunnel.js";
+
+export interface TestConfig {
+  test: {
+    group: string;
+    name: string;
+  };
+}
+
+export interface TunnelConfig {
+  tunnel: {
+    id: string;
+    client_endpoint: string;
+    server_endpoint: string;
+  };
+}
 
 export interface ServerConfig {
   server_ip: string;
@@ -74,7 +90,11 @@ export interface EchoConfig {
   };
 }
 
-export type LatencyTestConfig = ServerConfig & DurationConfig & SiffleConfig;
+export type LatencyTestConfig = ServerConfig &
+  DurationConfig &
+  SiffleConfig &
+  TunnelConfig &
+  TestConfig;
 
 export type TcpBandwidthTestConfig = ServerConfig &
   DurationConfig &
@@ -113,11 +133,27 @@ export type HttpTestConfig = ServerConfig &
   VegetaConfig &
   NginxConfig;
 
-async function create_results_folder() {
-  const folder = `/results/${new Date().toISOString().replace(/:/g, "-")}`;
-  await fs.mkdir(folder, { recursive: true });
-  return folder;
-}
+const TUNNELS: {
+  [tunnel_id: string]: {
+    client: (test_group: string, test_name: string) => StartTunnelConfig;
+    server: (test_group: string, test_name: string) => StartTunnelConfig;
+  };
+} = {
+  siffleux: {
+    client: (test_group, test_name) => ({
+      test_group,
+      test_name: `${test_name}-siffleux-client`,
+      cmd: "siffleux",
+      args: ["client", "--config=/app/configs/siffleux/client.toml"],
+    }),
+    server: (test_group, test_name) => ({
+      test_group,
+      test_name: `${test_name}-siffleux-server`,
+      cmd: "siffleux",
+      args: ["server", "--config=/app/configs/siffleux/server.toml"],
+    }),
+  },
+};
 
 function handleSigint(...processes: Process[]) {
   process.once("SIGINT", () => {
@@ -149,19 +185,19 @@ export async function launch_http_stress_test(config: HttpTestConfig) {
 }
 
 export async function launch_tcp_latency_test(config: LatencyTestConfig) {
-  const results_folder = await create_results_folder();
-
-  await fs.mkdir(results_folder, { recursive: true });
+  await start_tunnels(config);
 
   logger.info("Starting TCP latency test.");
 
-  const siffle = launch_siffle(config, results_folder, "tcp");
+  const siffle = launch_siffle(config, "tcp");
 
   logger.info("Siffle started.");
 
   handleSigint(siffle);
 
   await Promise.all([siffle.closed()]);
+
+  await stop_tunnels(config);
 
   logger.info("Finished latency test.");
 }
@@ -417,13 +453,11 @@ export async function launch_udp_idle_socket_test(
 }
 
 export async function launch_udp_latency_test(config: LatencyTestConfig) {
-  const results_folder = await create_results_folder();
-
-  await fs.mkdir(results_folder, { recursive: true });
+  await start_tunnels(config);
 
   logger.info("Starting UDP latency test.");
 
-  const siffle = launch_siffle(config, results_folder, "udp");
+  const siffle = launch_siffle(config, "udp");
 
   logger.info("Siffle started.");
 
@@ -431,14 +465,14 @@ export async function launch_udp_latency_test(config: LatencyTestConfig) {
 
   await Promise.all([siffle.closed()]);
 
+  await stop_tunnels(config);
+
   logger.info("Finished latency test.");
 }
 
 export async function launch_udp_bandwidth_test(
   config: UdpBandwidthTestConfig,
 ) {
-  const results_folder = await create_results_folder();
-
   logger.info("Starting UDP bandwidth test.");
 
   // const sockperf = launch_sockperf(config, results_folder, "udp");
@@ -541,9 +575,52 @@ export async function launch_udp_open_sockets_test(
   logger.info("Finished UDP open sockets test.");
 }
 
+async function start_tunnels(config: TestConfig & TunnelConfig) {
+  await start_tunnel(
+    config.tunnel.server_endpoint,
+    config.tunnel.id,
+    TUNNELS[config.tunnel.id]?.server(
+      config.test.group,
+      config.test.name,
+    ) as StartTunnelConfig,
+  );
+  await start_tunnel(
+    config.tunnel.client_endpoint,
+    config.tunnel.id,
+    TUNNELS[config.tunnel.id]?.client(
+      config.test.group,
+      config.test.name,
+    ) as StartTunnelConfig,
+  );
+}
+
+async function stop_tunnels(config: TunnelConfig) {
+  await stop_tunnel(config.tunnel.client_endpoint, config.tunnel.id);
+  await stop_tunnel(config.tunnel.server_endpoint, config.tunnel.id);
+}
+
+async function start_tunnel(
+  endpoint: string,
+  tunnel_id: string,
+  config: StartTunnelConfig,
+) {
+  await fetch(`${endpoint}/tunnels/${tunnel_id}`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(config),
+  });
+}
+
+async function stop_tunnel(endpoint: string, tunnel_id: string) {
+  await fetch(`${endpoint}/tunnels/${tunnel_id}`, {
+    method: "DELETE",
+  });
+}
+
 function launch_siffle(
   config: ServerConfig & DurationConfig & SiffleConfig,
-  results_folder: string,
   protocol: "udp" | "tcp",
 ) {
   return Process.spawn({

@@ -11,7 +11,7 @@ docker build -t siffleux-benchmark .
 Starts [Sockperf](https://github.com/mellanox/sockperf) to test latency with a TCP connection.
 
 ```bash
-docker run --rm -it -v ./results:/results --network siffleux-benchmark_siffleux-net siffleux-benchmark:latest tcp latency --ip 192.168.107.3 --siffle-port 9000 --duration 10
+docker run --rm -it -v ./test:/test --network siffleux-benchmark_siffleux-net siffleux-benchmark:latest tcp latency --ip 192.168.107.3 --siffle-port 9000 --duration 10
 ```
 
 ## Bandwidth
@@ -41,7 +41,7 @@ docker run --rm -it -v ./results:/results --network siffleux-benchmark_siffleux-
 Starts [Sockperf](https://github.com/mellanox/sockperf) to test latency over UDP.
 
 ```bash
-docker run --rm -it -v ./results:/results --network siffleux-benchmark_siffleux-net siffleux-benchmark:latest udp latency --ip 192.168.107.2  --duration 10 --sockperf-port 9000
+docker run --rm -it -v ./tests:/tests --network siffleux-benchmark_siffleux-benchmark siffleux-benchmark:latest udp latency --ip tunnel-server --duration 10 --siffle-port 9000
 ```
 
 ## Bandwidth

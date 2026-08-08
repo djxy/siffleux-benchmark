@@ -1,45 +1,45 @@
 [server]
-address = "siffleux-server:8765"
-certificate_hash = "smVvwBEKwl0EHp_YonwvNClf1a6-LRLg0bficvKH_Qw="
+address = "tunnel-server:8765"
+certificate_hash = "J5xuXbO1jaSUcHeZ4DG0uYgCr9K1VpxNdwlmUUgxGVE="
 
 [[tcp_egress]]
 id = "siffle-tcp"
 ingress_id = "siffle-tcp"
 auth_key = "secret!123"
-target = "siffleux-benchmark:5678"
+target = "tunnel-server:5678"
 
 [[udp_egress]]
 id = "siffle-udp"
 ingress_id = "siffle-udp"
 auth_key = "secret!123"
-target = "siffleux-benchmark:5678"
+target = "tunnel-server:5678"
 
 [[tcp_egress]]
 id = "nginx"
 ingress_id = "nginx"
 auth_key = "secret!123"
-target = "siffleux-benchmark:80"
+target = "tunnel-server:80"
 
 [[tcp_egress]]
 id = "echo-tcp"
 ingress_id = "echo-tcp"
 auth_key = "secret!123"
-target = "siffleux-benchmark:3001"
+target = "tunnel-server:3001"
 
 [[udp_egress]]
 id = "echo-udp"
 ingress_id = "echo-udp"
 auth_key = "secret!123"
-target = "siffleux-benchmark:3001"
+target = "tunnel-server:3001"
 
 [[tcp_egress]]
 id = "iperf3-tcp"
 ingress_id = "iperf3-tcp"
 auth_key = "secret!123"
-target = "siffleux-benchmark:5201"
+target = "tunnel-server:5201"
 
 [[udp_egress]]
 id = "iperf3-udp"
 ingress_id = "iperf3-udp"
 auth_key = "secret!123"
-target = "siffleux-benchmark:5201"
+target = "tunnel-server:5201"

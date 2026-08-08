@@ -2,8 +2,8 @@ import Fastify from "fastify";
 import { Process, sleep } from "./process.js";
 import { mkdir } from "fs/promises";
 
-interface StartConfig {
-  test_id: string;
+export interface StartTunnelConfig {
+  test_group: string;
   test_name: string;
   cmd: string;
   args: string[];
@@ -28,8 +28,9 @@ export function launch_tunnel_manager() {
 
     tunnels.set(tunnel_id, processes);
 
-    const start_config = req.body as StartConfig;
-    const test_folder = `/tests/${start_config.test_id}`;
+    const start_config = req.body as StartTunnelConfig;
+    console.log(start_config);
+    const test_folder = `/tests/${start_config.test_group}`;
     const test_file_prefix = `${test_folder}/${start_config.test_name}`;
 
     await mkdir(test_folder, { recursive: true });
@@ -53,13 +54,6 @@ export function launch_tunnel_manager() {
     });
 
     processes.push(pidstat_process);
-
-    console.log(`${tunnel_process.pid()} ${pidstat_process.pid()}`);
-
-    setTimeout(() => {
-      console.log(`${tunnel_process.pid()} ${pidstat_process.pid()}`);
-      console.log(`${tunnel_process.is_closed} ${pidstat_process.is_closed}`);
-    }, 1000);
   });
 
   fastify.delete("/tunnels/:tunnel_id", async (req, rep) => {
