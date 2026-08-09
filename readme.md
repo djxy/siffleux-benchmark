@@ -27,22 +27,22 @@ docker compose up -d
 
 # Tests
 
-The tests target the protocol layers 4 and 7. TCP and UDP have all the same tests to test latency, bandwidth, conccurent connections open and opening/closing many connections per second. HTTP 
+The tests target the protocol layers 4 and 7. The goal is to compare apple-to-apple, so each test/config has to be done over an encrypted channel.
 
 ## TCP Tests
 
 ### Latency
-Starts [Siffle](https://github.com/djxy/siffle) to test latency over UDP.
+Starts [Siffle](https://github.com/djxy/siffle) to test latency over TCP.
 
 ```bash
 docker run --rm -it --network siffleux-benchmark_default siffleux-benchmark tcp latency --tunnel siffleux
 ```
 
 ### Bandwidth
-Start [Iperf3](https://github.com/esnet/iperf) to test TCP bandwidth and starts [Sockperf](https://github.com/mellanox/sockperf) and test latency with a TCP connection.
+Start [Iperf3](https://github.com/esnet/iperf) to test TCP bandwidth and starts [Siffle](https://github.com/djxy/siffle) and test latency with a TCP connection.
 
 ```bash
-docker run --rm -it -v ./results:/results --network siffleux-benchmark_siffleux-net siffleux-benchmark:latest tcp bandwidth --ip 192.168.107.2 --sockperf-port 9000 --iperf3-port 9002 --duration 10
+docker run --rm -it -v ./tests:/tests --network siffleux-benchmark_default siffleux-benchmark tcp bandwidth --tunnel siffleux
 ```
 
 ### Idle Connections
@@ -69,10 +69,10 @@ docker run --rm -it --network siffleux-benchmark_default siffleux-benchmark tcp 
 ```
 
 ### Bandwidth
-Start [Iperf3](https://github.com/esnet/iperf) to test UDP bandwidth and starts [Sockperf](https://github.com/mellanox/sockperf) to test latency over UDP.
+Start [Iperf3](https://github.com/esnet/iperf) to test UDP bandwidth and starts [Siffle](https://github.com/djxy/siffle) and test latency with a UDP connection.
 
 ```bash
-docker run --rm -it -v ./results:/results --network siffleux-benchmark_siffleux-net siffleux-benchmark:latest udp bandwidth --ip 192.168.107.2  --duration 10 --iperf3-port 9002 --sockperf-port 9000
+docker run --rm -it -v ./tests:/tests --network siffleux-benchmark_default siffleux-benchmark udp bandwidth --tunnel siffleux
 ```
 
 ### Idle Sockets

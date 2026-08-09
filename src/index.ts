@@ -13,7 +13,6 @@ import {
   launch_udp_open_sockets_test,
   type DurationConfig,
   type Iperf3Config,
-  type Iperf3UDPConfig,
   type NginxConfig,
   type ServerConfig,
   type EchoConfig,
@@ -96,15 +95,12 @@ function set_iperf3_options(argv: Argv) {
       type: "number",
       describe: "Port of the iperf3 server.",
       default: 9002,
+    })
+    .option("iperf3-payload-size", {
+      type: "number",
+      describe: "iperf3 datagram payload size (-l)",
+      default: 1200,
     });
-}
-
-function set_iperf3_udp_options(argv: Argv) {
-  return argv.option("iperf3-payload-size", {
-    type: "number",
-    describe: "iperf3 datagram payload size (-l)",
-    default: 1200,
-  });
 }
 
 function set_echo_options(argv: Argv) {
@@ -176,13 +172,6 @@ const args_to_iperf3_config = (args: ArgumentsCamelCase): Iperf3Config => ({
     parallelism: args["iperf3-parallelism"] as number,
     port: args["iperf3-port"] as number,
     bandwidth: args["iperf3-bandwidth"] as string,
-  },
-});
-
-const args_to_iperf3_udp_config = (
-  args: ArgumentsCamelCase,
-): Iperf3UDPConfig => ({
-  iperf3: {
     payload_size: args["iperf3-payload-size"] as number,
   },
 });
@@ -319,8 +308,10 @@ await yargs(hideBin(process.argv))
         "bandwidth",
         "Measure maximum TCP throughput using iperf3 and round-trip latency using sockperf",
         (y) =>
-          set_echo_options(
-            set_iperf3_options(set_duration_options(set_server_options(y))),
+          set_tunnel_options(
+            set_siffle_options(
+              set_iperf3_options(set_duration_options(set_server_options(y))),
+            ),
           ),
         async (argv) => {
           try {
@@ -328,7 +319,9 @@ await yargs(hideBin(process.argv))
               ...args_to_server_config(argv),
               ...args_to_duration_config(argv),
               ...args_to_iperf3_config(argv),
-              ...args_to_echo_config(argv),
+              ...args_to_siffle_config(argv),
+              ...args_to_tunnel_config(argv),
+              ...args_to_test_config(argv),
             });
           } catch (err) {
             logger.error(err);
@@ -404,11 +397,9 @@ await yargs(hideBin(process.argv))
         "bandwidth",
         "Measure maximum UDP throughput using iperf3 and round-trip latency using sockperf",
         (y) =>
-          set_echo_options(
-            set_iperf3_options(
-              set_iperf3_udp_options(
-                set_duration_options(set_server_options(y)),
-              ),
+          set_tunnel_options(
+            set_siffle_options(
+              set_iperf3_options(set_duration_options(set_server_options(y))),
             ),
           ),
         async (argv) => {
@@ -416,11 +407,10 @@ await yargs(hideBin(process.argv))
             await launch_udp_bandwidth_test({
               ...args_to_server_config(argv),
               ...args_to_duration_config(argv),
-              ...args_to_echo_config(argv),
-              iperf3: {
-                ...args_to_iperf3_config(argv).iperf3,
-                ...args_to_iperf3_udp_config(argv).iperf3,
-              },
+              ...args_to_iperf3_config(argv),
+              ...args_to_siffle_config(argv),
+              ...args_to_tunnel_config(argv),
+              ...args_to_test_config(argv),
             });
           } catch (err) {
             logger.error(err);

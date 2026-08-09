@@ -1,11 +1,21 @@
 import { spawn, type ChildProcess } from "child_process";
 import fs from "fs";
+import { mkdir } from "fs/promises";
 
 export interface ProcessOptions {
   cmd: string;
   args: string[];
   stdout_file?: string;
   stderr_file?: string;
+}
+
+export async function prepare_test_folder(test_group: string, test_name: string) {
+  const test_folder = `/tests/${test_group}`;
+  const test_file_prefix = `${test_folder}/${test_name}`;
+
+  await mkdir(test_folder, { recursive: true });
+
+  return test_file_prefix;
 }
 
 export function sleep(seconds: number) {
@@ -24,18 +34,22 @@ export class Process {
   }
 
   private constructor(opt: ProcessOptions) {
-    const stdout = opt.stdout_file ? fs.openSync(opt.stdout_file, "a") : 'inherit';
-    const stderr = opt.stderr_file ? fs.openSync(opt.stderr_file, "a") : 'inherit';
+    const stdout = opt.stdout_file
+      ? fs.openSync(opt.stdout_file, "a")
+      : "inherit";
+    const stderr = opt.stderr_file
+      ? fs.openSync(opt.stderr_file, "a")
+      : "inherit";
 
     this.#spawned_process = spawn(opt.cmd, opt.args, {
       stdio: ["ignore", stdout, stderr],
     });
 
     this.#spawned_process.on("close", (_) => {
-      if (typeof stderr === 'number') {
+      if (typeof stderr === "number") {
         fs.closeSync(stderr);
       }
-      if (typeof stdout === 'number') {
+      if (typeof stdout === "number") {
         fs.closeSync(stdout);
       }
 

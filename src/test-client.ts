@@ -1,5 +1,5 @@
 import logger from "./logger.js";
-import { Process, sleep } from "./process.js";
+import { prepare_test_folder, Process, sleep } from "./process.js";
 import fs from "fs/promises";
 import net, { Socket } from "net";
 import dgram from "dgram";
@@ -33,11 +33,6 @@ export interface Iperf3Config {
     parallelism: number;
     port: number;
     bandwidth: string;
-  };
-}
-
-export interface Iperf3UDPConfig {
-  iperf3: {
     payload_size: number;
   };
 }
@@ -98,8 +93,10 @@ export type LatencyTestConfig = ServerConfig &
 
 export type TcpBandwidthTestConfig = ServerConfig &
   DurationConfig &
-  EchoConfig &
-  Iperf3Config;
+  Iperf3Config &
+  SiffleConfig &
+  TunnelConfig &
+  TestConfig;
 
 export type TcpIdleConnectionTestConfig = ServerConfig &
   IdleConnectionConfig &
@@ -113,9 +110,10 @@ export type TcpOpenConnectionTestConfig = ServerConfig &
 
 export type UdpBandwidthTestConfig = ServerConfig &
   DurationConfig &
-  EchoConfig &
-  Iperf3UDPConfig &
-  Iperf3Config;
+  Iperf3Config &
+  SiffleConfig &
+  TunnelConfig &
+  TestConfig;
 
 export type UdpIdleSocketTestConfig = ServerConfig &
   IdleSocketConfig &
@@ -205,32 +203,45 @@ export async function launch_tcp_latency_test(config: LatencyTestConfig) {
 export async function launch_tcp_bandwidth_test(
   config: TcpBandwidthTestConfig,
 ) {
-  // const results_folder = await create_results_folder();
-  // logger.info("Starting TCP bandwidth test.");
-  // const sockperf = launch_sockperf(config, results_folder, "tcp");
-  // logger.info("Sockperf started. Starting iperf3 in 2 seconds.");
-  // await sleep(2);
-  // const iperf3 = Process.spawn({
-  //   cmd: "iperf3",
-  //   args: [
-  //     "-c",
-  //     config.server_ip,
-  //     "-p",
-  //     `${config.iperf3.port}`,
-  //     "-P",
-  //     `${config.iperf3.parallelism}`,
-  //     "-t",
-  //     `${config.duration_seconds}`,
-  //     "--bidir",
-  //     "-b",
-  //     `${config.iperf3.bandwidth}`,
-  //   ],
-  //   logs_folder: results_folder,
-  // });
-  // logger.info("Iperf3 started.");
-  // handleSigint(iperf3, sockperf);
-  // await Promise.all([iperf3.closed(), sockperf.closed()]);
-  // logger.info("Finished TCP bandwidth test.");
+  logger.info("Starting TCP bandwidth test.");
+
+  const test_file_prefix = await prepare_test_folder(
+    config.test.group,
+    config.test.name,
+  );
+
+  await start_tunnels(config);
+
+  const siffle = launch_siffle(config, "tcp");
+
+  const iperf3 = Process.spawn({
+    cmd: "iperf3",
+    args: [
+      "-c",
+      config.server_ip,
+      "-p",
+      `${config.iperf3.port}`,
+      "-P",
+      `${config.iperf3.parallelism}`,
+      "-t",
+      `${config.duration_seconds}`,
+      "--bidir",
+      "-b",
+      `${config.iperf3.bandwidth}`,
+    ],
+    stderr_file: `${test_file_prefix}-iperf3-client.err`,
+    stdout_file: `${test_file_prefix}-iperf3-client.log`,
+  });
+
+  logger.info("Iperf3 started.");
+
+  handleSigint(iperf3, siffle);
+
+  await Promise.all([iperf3.closed(), siffle.closed()]);
+
+  await stop_tunnels(config);
+
+  logger.info("Finished TCP bandwidth test.");
 }
 
 export async function launch_tcp_idle_connection_test(
@@ -475,9 +486,14 @@ export async function launch_udp_bandwidth_test(
 ) {
   logger.info("Starting UDP bandwidth test.");
 
-  // const sockperf = launch_sockperf(config, results_folder, "udp");
+  const test_file_prefix = await prepare_test_folder(
+    config.test.group,
+    config.test.name,
+  );
 
-  logger.info("Sockperf started. Starting iperf3 in 2 seconds.");
+  await start_tunnels(config);
+
+  const siffle = launch_siffle(config, "udp");
 
   const iperf3 = Process.spawn({
     cmd: "iperf3",
@@ -497,19 +513,17 @@ export async function launch_udp_bandwidth_test(
       "-l",
       `${config.iperf3.payload_size}`,
     ],
+    stderr_file: `${test_file_prefix}-iperf3-client.err`,
+    stdout_file: `${test_file_prefix}-iperf3-client.log`,
   });
 
   logger.info("Iperf3 started.");
 
-  handleSigint(
-    iperf3,
-    // sockperf
-  );
+  handleSigint(iperf3, siffle);
 
-  await Promise.all([
-    iperf3.closed(),
-    // sockperf.closed()
-  ]);
+  await Promise.all([iperf3.closed(), siffle.closed()]);
+
+  await stop_tunnels(config);
 
   logger.info("Finished UDP bandwidth test.");
 }
@@ -632,7 +646,7 @@ function launch_siffle(
       "-p",
       `${config.siffle.port}`,
       "-t",
-      `${config.duration_seconds + 2}`,
+      `${config.duration_seconds}`,
       "--mps=1000",
     ],
   });

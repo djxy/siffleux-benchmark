@@ -1,5 +1,5 @@
 import Fastify from "fastify";
-import { Process, sleep } from "./process.js";
+import { prepare_test_folder, Process, sleep } from "./process.js";
 import { mkdir } from "fs/promises";
 
 export interface StartTunnelConfig {
@@ -29,11 +29,10 @@ export function launch_tunnel_manager() {
     tunnels.set(tunnel_id, processes);
 
     const start_config = req.body as StartTunnelConfig;
-    console.log(start_config);
-    const test_folder = `/tests/${start_config.test_group}`;
-    const test_file_prefix = `${test_folder}/${start_config.test_name}`;
-
-    await mkdir(test_folder, { recursive: true });
+    const test_file_prefix = await prepare_test_folder(
+      start_config.test_group,
+      start_config.test_name,
+    );
 
     const tunnel_process = Process.spawn({
       cmd: start_config.cmd,
