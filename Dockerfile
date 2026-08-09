@@ -19,8 +19,6 @@ ENV NODE_ENV=production
 
 WORKDIR /app
 
-COPY /configs /app/configs
-
 #################
 # Testing Tools #
 #################
@@ -45,9 +43,11 @@ RUN chmod +x /usr/local/bin/siffle
 #    Tunnels    #
 #################
 
-RUN wget https://github.com/djxy/siffleux/releases/download/0.1.0/siffleux-linux-$(uname -m)
+RUN wget https://github.com/djxy/siffleux/releases/download/0.2.0/siffleux-linux-$(uname -m)
 RUN mv siffleux-linux-$(uname -m) /usr/local/bin/siffleux
 RUN chmod +x /usr/local/bin/siffleux
+
+COPY /configs /app/configs
 
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/node_modules ./node_modules

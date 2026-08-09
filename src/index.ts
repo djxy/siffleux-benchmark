@@ -9,6 +9,8 @@ import {
   launch_udp_latency_test,
   launch_udp_bandwidth_test,
   launch_udp_idle_socket_test,
+  launch_tcp_open_connections_test,
+  launch_udp_open_sockets_test,
   type DurationConfig,
   type Iperf3Config,
   type Iperf3UDPConfig,
@@ -18,10 +20,8 @@ import {
   type VegetaConfig,
   type IdleSocketConfig,
   type IdleConnectionConfig,
-  launch_tcp_open_connections_test,
   type OpenConnectionConfig,
   type OpenSocketConfig,
-  launch_udp_open_sockets_test,
   type SiffleConfig,
   type TunnelConfig,
   type TestConfig,
@@ -33,31 +33,34 @@ function set_server_options(argv: Argv) {
   return argv.option("ip", {
     type: "string",
     describe: "IP of the server to test.",
-    demandOption: true,
+    default: "tunnel-server",
   });
 }
 
 function set_tunnel_options(argv: Argv) {
-  return argv.option("tunnel-id", {
-    type: "string",
-    describe: "The ID of the tunnel to test.",
-    demandOption: true,
-  }).option("tunnel-client-endpoint", {
-    type: "string",
-    describe: "The tunnel endpoint to start the tunnel client.",
-    default: "http://tunnel-client:8080"
-  }).option("tunnel-server-endpoint", {
-    type: "string",
-    describe: "The tunnel endpoint to start the tunnel server.",
-    default: "http://tunnel-server:8080"
-  });
+  return argv
+    .option("tunnel", {
+      type: "string",
+      describe: "The tunnel to test.",
+      demandOption: true,
+    })
+    .option("tunnel-client-endpoint", {
+      type: "string",
+      describe: "The tunnel endpoint to start the tunnel client.",
+      default: "http://tunnel-client:8080",
+    })
+    .option("tunnel-server-endpoint", {
+      type: "string",
+      describe: "The tunnel endpoint to start the tunnel server.",
+      default: "http://tunnel-server:8080",
+    });
 }
 
 function set_duration_options(argv: Argv) {
   return argv.option("duration", {
     type: "number",
     describe: "Duration in seconds to test.",
-    demandOption: true,
+    default: 30,
   });
 }
 
@@ -73,7 +76,7 @@ function set_nginx_options(argv: Argv) {
   return argv.option("nginx-port", {
     type: "number",
     describe: "Port of the nginx server.",
-    default: 80,
+    default: 9001,
   });
 }
 
@@ -92,7 +95,7 @@ function set_iperf3_options(argv: Argv) {
     .option("iperf3-port", {
       type: "number",
       describe: "Port of the iperf3 server.",
-      default: 5201,
+      default: 9002,
     });
 }
 
@@ -108,7 +111,7 @@ function set_echo_options(argv: Argv) {
   return argv.option("echo-port", {
     type: "number",
     describe: "Port of the Echo server.",
-    default: 5000,
+    default: 9003,
   });
 }
 
@@ -116,7 +119,7 @@ function set_siffle_options(argv: Argv) {
   return argv.option("siffle-port", {
     type: "number",
     describe: "Port of the Siffle server.",
-    default: 5678,
+    default: 9000,
   });
 }
 
@@ -162,7 +165,7 @@ const args_to_duration_config = (args: ArgumentsCamelCase): DurationConfig => ({
 
 const args_to_tunnel_config = (args: ArgumentsCamelCase): TunnelConfig => ({
   tunnel: {
-    id: args["tunnel-id"] as string,
+    id: args["tunnel"] as string,
     client_endpoint: args["tunnel-client-endpoint"] as string,
     server_endpoint: args["tunnel-server-endpoint"] as string,
   },
@@ -242,7 +245,7 @@ const args_to_vegeta_config = (args: ArgumentsCamelCase): VegetaConfig => ({
 
 const args_to_test_config = (args: ArgumentsCamelCase): TestConfig => ({
   test: {
-    group: new Date().toISOString().replaceAll(':', '-'),
+    group: new Date().toISOString().replaceAll(":", "-"),
     name: `${args._[0]}-${args._[1]}`,
   },
 });
@@ -295,7 +298,9 @@ await yargs(hideBin(process.argv))
         "latency",
         "Measure round-trip latency using sockperf",
         (y) =>
-          set_tunnel_options(set_siffle_options(set_duration_options(set_server_options(y)))),
+          set_tunnel_options(
+            set_siffle_options(set_duration_options(set_server_options(y))),
+          ),
         async (argv) => {
           try {
             await launch_tcp_latency_test({
@@ -303,7 +308,7 @@ await yargs(hideBin(process.argv))
               ...args_to_duration_config(argv),
               ...args_to_siffle_config(argv),
               ...args_to_tunnel_config(argv),
-              ...args_to_test_config(argv)
+              ...args_to_test_config(argv),
             });
           } catch (err) {
             logger.error(err);
@@ -378,7 +383,9 @@ await yargs(hideBin(process.argv))
         "latency",
         "Measure round-trip latency using sockperf",
         (y) =>
-        set_tunnel_options(set_siffle_options(set_duration_options(set_server_options(y)))),
+          set_tunnel_options(
+            set_siffle_options(set_duration_options(set_server_options(y))),
+          ),
         async (argv) => {
           try {
             await launch_udp_latency_test({
@@ -386,7 +393,7 @@ await yargs(hideBin(process.argv))
               ...args_to_duration_config(argv),
               ...args_to_siffle_config(argv),
               ...args_to_tunnel_config(argv),
-              ...args_to_test_config(argv)
+              ...args_to_test_config(argv),
             });
           } catch (err) {
             logger.error(err);

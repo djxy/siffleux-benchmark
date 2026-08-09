@@ -1,4 +1,21 @@
 services:
+  test-server:
+    image: siffleux-benchmark:latest
+    volumes:
+      - ./tests:/tests
+    command: server
+  tunnel-server:
+    image: siffleux-benchmark:latest
+    volumes:
+      - ./tests:/tests
+    command: tunnel
+  tunnel-client:
+    image: siffleux-benchmark:latest
+    volumes:
+      - ./tests:/tests
+    command: tunnel
+
+
   # frp-tls-server:
   #   image: ghcr.io/fatedier/frps:v0.70.0
   #   volumes:
@@ -127,28 +144,3 @@ services:
   #   command: server
   #   networks:
   #     - siffleux-net
-
-  test-server:
-    image: siffleux-benchmark:latest
-    volumes:
-      - ./tests:/tests
-    command: server
-    networks:
-      - siffleux-benchmark
-  tunnel-server:
-    image: siffleux-benchmark:latest
-    volumes:
-      - ./tests:/tests
-    command: tunnel
-    networks:
-      - siffleux-benchmark
-  tunnel-client:
-    image: siffleux-benchmark:latest
-    volumes:
-      - ./tests:/tests
-    command: tunnel
-    networks:
-      - siffleux-benchmark
-networks:
-  siffleux-benchmark:
-    driver: bridge

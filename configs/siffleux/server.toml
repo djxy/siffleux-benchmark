@@ -1,5 +1,9 @@
 id = "siffleux-server"
 
+[tls]
+cert_pem_path = "/app/configs/siffleux/cert.pem"
+key_pem_path = "/app/configs/siffleux/key.pem"
+
 [[tcp_ingress]]
 id = "siffle-tcp"
 port = 9000
