@@ -101,12 +101,18 @@ export type TcpBandwidthTestConfig = ServerConfig &
 export type TcpIdleConnectionTestConfig = ServerConfig &
   IdleConnectionConfig &
   EchoConfig &
-  DurationConfig;
+  DurationConfig &
+  SiffleConfig &
+  TunnelConfig &
+  TestConfig;
 
 export type TcpOpenConnectionTestConfig = ServerConfig &
   OpenConnectionConfig &
   EchoConfig &
-  DurationConfig;
+  DurationConfig &
+  SiffleConfig &
+  TunnelConfig &
+  TestConfig;
 
 export type UdpBandwidthTestConfig = ServerConfig &
   DurationConfig &
@@ -118,18 +124,26 @@ export type UdpBandwidthTestConfig = ServerConfig &
 export type UdpIdleSocketTestConfig = ServerConfig &
   IdleSocketConfig &
   EchoConfig &
-  DurationConfig;
+  DurationConfig &
+  SiffleConfig &
+  TunnelConfig &
+  TestConfig;
 
 export type UdpOpenSocketTestConfig = ServerConfig &
   OpenSocketConfig &
   EchoConfig &
-  DurationConfig;
+  DurationConfig &
+  SiffleConfig &
+  TunnelConfig &
+  TestConfig;
 
 export type HttpTestConfig = ServerConfig &
   DurationConfig &
-  EchoConfig &
   VegetaConfig &
-  NginxConfig;
+  NginxConfig &
+  SiffleConfig &
+  TunnelConfig &
+  TestConfig;
 
 const TUNNELS: {
   [tunnel_id: string]: {
@@ -161,25 +175,33 @@ function handleSigint(...processes: Process[]) {
 }
 
 export async function launch_http_stress_test(config: HttpTestConfig) {
-  // const results_folder = await create_results_folder();
-  // await fs.mkdir(results_folder, { recursive: true });
-  // logger.info("Starting HTTP test.");
-  // const sockperf = launch_sockperf(config, results_folder, "tcp");
-  // logger.info("Sockperf started. Starting vegeta in 2 seconds.");
-  // await sleep(2);
-  // const vegeta = Process.spawn({
-  //   cmd: "sh",
-  //   args: [
-  //     "-c",
-  //     `echo "GET http://${config.server_ip}:${config.nginx.port}" | vegeta attack -max-workers ${config.vegeta.max_workers} -rate 0 -duration ${config.duration_seconds}s | vegeta report -every=1s`,
-  //   ],
-  //   name: "vegeta",
-  //   logs_folder: results_folder,
-  // });
-  // logger.info("Vegeta started.");
-  // handleSigint(vegeta, sockperf);
-  // await Promise.all([vegeta.closed(), sockperf.closed()]);
-  // logger.info("Finished HTTP test.");
+  logger.info("Starting HTTP stress test.");
+
+  const test_file_prefix = await prepare_test_folder(
+    config.test.group,
+    config.test.name,
+  );
+
+  await start_tunnels(config);
+
+  const siffle = launch_siffle(config, "tcp");
+  const vegeta = Process.spawn({
+    cmd: "sh",
+    args: [
+      "-c",
+      `echo "GET http://${config.server_ip}:${config.nginx.port}" | vegeta attack -max-workers ${config.vegeta.max_workers} -rate 0 -duration ${config.duration_seconds}s | vegeta report -every=1s`,
+    ],
+    stderr_file: `${test_file_prefix}-vegeta.err`,
+    stdout_file: `${test_file_prefix}-vegeta.log`,
+  });
+
+  logger.info("Vegeta started.");
+
+  handleSigint(vegeta, siffle);
+
+  await Promise.all([vegeta.closed(), siffle.closed()]);
+
+  logger.info("Finished HTTP stress test.");
 }
 
 export async function launch_tcp_latency_test(config: LatencyTestConfig) {
@@ -248,6 +270,11 @@ export async function launch_tcp_idle_connection_test(
   config: TcpIdleConnectionTestConfig,
 ) {
   logger.info("Starting TCP idle connections test.");
+
+  await start_tunnels(config);
+
+  const siffle = launch_siffle(config, "tcp");
+
   let socket_timeouts = 0;
   let socket_errors = 0;
 
@@ -307,6 +334,8 @@ export async function launch_tcp_idle_connection_test(
     ),
   );
 
+  handleSigint(siffle);
+
   logger.info(
     `Testing ${config.idle_connection.connections} idle connections for ${config.duration_seconds} seconds.`,
   );
@@ -316,6 +345,10 @@ export async function launch_tcp_idle_connection_test(
   sockets.forEach((socket) => {
     socket.destroy();
   });
+
+  await Promise.all([siffle.closed()]);
+
+  await stop_tunnels(config);
 
   logger.info(`Closed connections.`);
 
@@ -332,6 +365,10 @@ export async function launch_tcp_open_connections_test(
   config: TcpOpenConnectionTestConfig,
 ) {
   logger.info("Starting TCP open connections test.");
+
+  await start_tunnels(config);
+
+  const siffle = launch_siffle(config, "tcp");
 
   let connection_id_counter = 0;
   let connected = 0;
@@ -375,6 +412,8 @@ export async function launch_tcp_open_connections_test(
       },
     );
 
+  handleSigint(siffle);
+
   let interval_id = setInterval(open_connections, 1000);
 
   open_connections();
@@ -391,6 +430,10 @@ export async function launch_tcp_open_connections_test(
     socket.destroy();
   });
 
+  await Promise.all([siffle.closed()]);
+
+  await stop_tunnels(config);
+
   logger.info(`Successful connections: ${connected}`);
   logger.info(`Failed connections: ${errors}`);
   logger.info(`Timeout connections: ${timeouts}`);
@@ -402,6 +445,10 @@ export async function launch_udp_idle_socket_test(
   config: UdpIdleSocketTestConfig,
 ) {
   logger.info("Starting UDP idle sockets test.");
+
+  await start_tunnels(config);
+
+  const siffle = launch_siffle(config, "udp");
 
   let sockets_received_datagrams = 0;
   let datagrams_sent = 0;
@@ -441,6 +488,8 @@ export async function launch_udp_idle_socket_test(
     ),
   );
 
+  handleSigint(siffle);
+
   logger.info(
     `Testing ${config.idle_socket.sockets} idle sockets for ${config.duration_seconds} seconds.`,
   );
@@ -451,6 +500,10 @@ export async function launch_udp_idle_socket_test(
     socket.close();
     clearTimeout(timeout_id);
   });
+
+  await Promise.all([siffle.closed()]);
+
+  await stop_tunnels(config);
 
   logger.info(`Closed sockets.`);
 
@@ -533,6 +586,10 @@ export async function launch_udp_open_sockets_test(
 ) {
   logger.info("Starting UDP open sockets test.");
 
+  await start_tunnels(config);
+
+  const siffle = launch_siffle(config, "tcp");
+
   let socket_id_counter = 0;
   let socket_connected = 0;
   let message_sent = 0;
@@ -566,6 +623,8 @@ export async function launch_udp_open_sockets_test(
     });
   };
 
+  handleSigint(siffle);
+
   let interval_id = setInterval(open_sockets, 1000);
 
   open_sockets();
@@ -581,6 +640,10 @@ export async function launch_udp_open_sockets_test(
   sockets.forEach((socket) => {
     socket.close();
   });
+
+  await Promise.all([siffle.closed()]);
+
+  await stop_tunnels(config);
 
   logger.info(`Opened sockets: ${socket_connected}`);
   logger.info(`Message sent: ${message_sent}`);

@@ -123,7 +123,7 @@ function set_idle_connections_options(argv: Argv) {
   return argv.option("idle-connections", {
     type: "number",
     describe: "Number of concurrent idle connections to open.",
-    default: 100,
+    default: 1000,
   });
 }
 
@@ -139,7 +139,7 @@ function set_idle_sockets_options(argv: Argv) {
   return argv.option("idle-sockets", {
     type: "number",
     describe: "Number of concurrent idle sockets to open.",
-    default: 100,
+    default: 1000,
   });
 }
 
@@ -261,9 +261,11 @@ await yargs(hideBin(process.argv))
       "stress",
       "HTTP stress test using Vegeta",
       (y) =>
-        set_echo_options(
-          set_nginx_options(
-            set_vegeta_options(set_duration_options(set_server_options(y))),
+        set_siffle_options(
+          set_tunnel_options(
+            set_nginx_options(
+              set_vegeta_options(set_duration_options(set_server_options(y))),
+            ),
           ),
         ),
       async (argv) => {
@@ -273,7 +275,9 @@ await yargs(hideBin(process.argv))
             ...args_to_duration_config(argv),
             ...args_to_vegeta_config(argv),
             ...args_to_nginx_config(argv),
-            ...args_to_echo_config(argv),
+            ...args_to_siffle_config(argv),
+            ...args_to_tunnel_config(argv),
+            ...args_to_test_config(argv),
           });
         } catch (err) {
           logger.error(err);
@@ -332,8 +336,12 @@ await yargs(hideBin(process.argv))
         "idle-connections",
         "Test long-lived TCP connections sending 1 byte at interval of few seconds",
         (y) =>
-          set_idle_connections_options(
-            set_echo_options(set_duration_options(set_server_options(y))),
+          set_siffle_options(
+            set_tunnel_options(
+              set_idle_connections_options(
+                set_echo_options(set_duration_options(set_server_options(y))),
+              ),
+            ),
           ),
         async (argv) => {
           try {
@@ -342,6 +350,9 @@ await yargs(hideBin(process.argv))
               ...args_to_duration_config(argv),
               ...args_to_echo_config(argv),
               ...args_to_idle_connection_config(argv),
+              ...args_to_siffle_config(argv),
+              ...args_to_tunnel_config(argv),
+              ...args_to_test_config(argv),
             });
           } catch (err) {
             logger.error(err);
@@ -352,8 +363,12 @@ await yargs(hideBin(process.argv))
         "open-connections",
         "Open a specific number of TCP connections per second and immediately close the connection once connected",
         (y) =>
-          set_open_connections_options(
-            set_echo_options(set_duration_options(set_server_options(y))),
+          set_siffle_options(
+            set_tunnel_options(
+              set_open_connections_options(
+                set_echo_options(set_duration_options(set_server_options(y))),
+              ),
+            ),
           ),
         async (argv) => {
           try {
@@ -362,6 +377,9 @@ await yargs(hideBin(process.argv))
               ...args_to_duration_config(argv),
               ...args_to_echo_config(argv),
               ...args_to_open_connection_config(argv),
+              ...args_to_siffle_config(argv),
+              ...args_to_tunnel_config(argv),
+              ...args_to_test_config(argv),
             });
           } catch (err) {
             logger.error(err);
@@ -421,8 +439,12 @@ await yargs(hideBin(process.argv))
         "idle-sockets",
         "Test long-lived UDP sockets sending 1 byte at interval of few seconds",
         (y) =>
-          set_idle_sockets_options(
-            set_echo_options(set_duration_options(set_server_options(y))),
+          set_siffle_options(
+            set_tunnel_options(
+              set_idle_sockets_options(
+                set_echo_options(set_duration_options(set_server_options(y))),
+              ),
+            ),
           ),
         async (argv) => {
           try {
@@ -431,6 +453,9 @@ await yargs(hideBin(process.argv))
               ...args_to_duration_config(argv),
               ...args_to_echo_config(argv),
               ...args_to_idle_socket_config(argv),
+              ...args_to_siffle_config(argv),
+              ...args_to_tunnel_config(argv),
+              ...args_to_test_config(argv),
             });
           } catch (err) {
             logger.error(err);
@@ -441,8 +466,12 @@ await yargs(hideBin(process.argv))
         "open-sockets",
         "Open a specific number of UDP sockets per second and send some datagrams to the tunnel",
         (y) =>
-          set_open_sockets_options(
-            set_echo_options(set_duration_options(set_server_options(y))),
+          set_siffle_options(
+            set_tunnel_options(
+              set_open_sockets_options(
+                set_echo_options(set_duration_options(set_server_options(y))),
+              ),
+            ),
           ),
         async (argv) => {
           try {
@@ -451,6 +480,9 @@ await yargs(hideBin(process.argv))
               ...args_to_duration_config(argv),
               ...args_to_echo_config(argv),
               ...args_to_open_socket_config(argv),
+              ...args_to_siffle_config(argv),
+              ...args_to_tunnel_config(argv),
+              ...args_to_test_config(argv),
             });
           } catch (err) {
             logger.error(err);
