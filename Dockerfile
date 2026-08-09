@@ -28,6 +28,7 @@ RUN apt-get update && apt-get install -y \
     wget \
     iperf3 \
     nginx \
+    unzip \
     && rm -rf /var/lib/apt/lists/*
 
 RUN wget https://github.com/tsenart/vegeta/releases/download/v12.12.0/vegeta_12.12.0_linux_${TARGETARCH}.tar.gz
@@ -46,6 +47,18 @@ RUN chmod +x /usr/local/bin/siffle
 RUN wget https://github.com/djxy/siffleux/releases/download/0.2.0/siffleux-linux-$(uname -m)
 RUN mv siffleux-linux-$(uname -m) /usr/local/bin/siffleux
 RUN chmod +x /usr/local/bin/siffleux
+
+RUN case "${TARGETARCH}" in \
+        "amd64") RATHOLE_ARCH="x86_64-unknown-linux-musl" ;; \
+        "arm64") RATHOLE_ARCH="aarch64-unknown-linux-musl" ;; \
+        "arm")   RATHOLE_ARCH="armv7-unknown-linux-musleabihf" ;; \
+        *) echo "Unsupported architecture: ${TARGETARCH}" && exit 1 ;; \
+    esac && \
+    wget "https://github.com/rathole-org/rathole/releases/download/v0.5.0/rathole-${RATHOLE_ARCH}.zip" && \
+    unzip "rathole-${RATHOLE_ARCH}.zip" && \
+    mv rathole /usr/local/bin/rathole && \
+    chmod +x /usr/local/bin/rathole && \
+    rm "rathole-${RATHOLE_ARCH}.zip"
 
 COPY /configs /app/configs
 

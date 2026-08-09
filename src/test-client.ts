@@ -165,6 +165,20 @@ const TUNNELS: {
       args: ["server", "--config=/app/configs/siffleux/server.toml"],
     }),
   },
+  'rathole': {
+    client: (test_group, test_name) => ({
+      test_group,
+      test_name: `${test_name}-rathole-client`,
+      cmd: "rathole",
+      args: ["--client", "/app/configs/rathole-noise/client.toml"],
+    }),
+    server: (test_group, test_name) => ({
+      test_group,
+      test_name: `${test_name}-rathole-server`,
+      cmd: "rathole",
+      args: ["--server", "/app/configs/rathole-noise/server.toml"],
+    }),
+  },
 };
 
 function handleSigint(...processes: Process[]) {

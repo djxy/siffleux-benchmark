@@ -15,6 +15,24 @@ services:
       - ./tests:/tests
     command: tunnel
 
+  # rathole-tls-server:
+  #   image: rathole:latest
+  #   volumes:
+  #     - ./configs/rathole-tls/server.toml:/app/config.toml
+  #     - ./configs/rathole-tls/certs:/app/certs:ro
+  #   environment:
+  #     - RUST_LOG=debug
+  #   command: ["--server", "/app/config.toml"]
+  # rathole-tls-client:
+  #   image: rathole:latest
+  #   volumes:
+  #     - ./configs/rathole-tls/client.toml:/app/config.toml
+  #     - ./configs/rathole-tls/certs:/app/certs:ro
+  #   environment:
+  #     - RUST_LOG=debug
+  #   command: ["--client", "/app/config.toml"]
+  #   depends_on:
+  #     - rathole-tls-server
 
   # frp-tls-server:
   #   image: ghcr.io/fatedier/frps:v0.70.0
@@ -52,24 +70,6 @@ services:
   #   command: ["-c", "/etc/frp/frpc.toml"]
   #   depends_on:
   #     - frp-kcp-server
-  # rathole-tls-server:
-  #   image: rathole:latest
-  #   volumes:
-  #     - ./configs/rathole-tls/server.toml:/app/config.toml
-  #     - ./configs/rathole-tls/certs:/app/certs:ro
-  #   environment:
-  #     - RUST_LOG=debug
-  #   command: ["--server", "/app/config.toml"]
-  # rathole-tls-client:
-  #   image: rathole:latest
-  #   volumes:
-  #     - ./configs/rathole-tls/client.toml:/app/config.toml
-  #     - ./configs/rathole-tls/certs:/app/certs:ro
-  #   environment:
-  #     - RUST_LOG=debug
-  #   command: ["--client", "/app/config.toml"]
-  #   depends_on:
-  #     - rathole-tls-server
   # rathole-noise-server:
   #   image: rathole:latest
   #   volumes:
