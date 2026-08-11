@@ -15,25 +15,6 @@ services:
       - ./tests:/tests
     command: tunnel
 
-  # rathole-tls-server:
-  #   image: rathole:latest
-  #   volumes:
-  #     - ./configs/rathole-tls/server.toml:/app/config.toml
-  #     - ./configs/rathole-tls/certs:/app/certs:ro
-  #   environment:
-  #     - RUST_LOG=debug
-  #   command: ["--server", "/app/config.toml"]
-  # rathole-tls-client:
-  #   image: rathole:latest
-  #   volumes:
-  #     - ./configs/rathole-tls/client.toml:/app/config.toml
-  #     - ./configs/rathole-tls/certs:/app/certs:ro
-  #   environment:
-  #     - RUST_LOG=debug
-  #   command: ["--client", "/app/config.toml"]
-  #   depends_on:
-  #     - rathole-tls-server
-
   # frp-tls-server:
   #   image: ghcr.io/fatedier/frps:v0.70.0
   #   volumes:
@@ -132,7 +113,7 @@ services:
   #     sh -c "
   #       apk add --no-cache iproute2
   #       tc qdisc del dev eth0 root
-  #       tc qdisc add dev eth0 root netem delay 10ms 5ms distribution normal loss 1% corrupt 0%
+  #       tc qdisc add dev eth0 root netem delay 10ms 5ms 25% distribution normal loss 1% 20% corrupt 0%
   #       # tc qdisc add dev eth0 root netem delay 10ms 5ms distribution normal
   #       tc qdisc show dev eth0
   #     "

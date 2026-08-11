@@ -1,1 +1,6 @@
 bindPort = 7000
+
+transport.tls.force = true
+transport.tls.certFile = "/app/configs/frp-tls/server.crt"
+transport.tls.keyFile = "/app/configs/frp-tls/server.key"
+transport.tls.trustedCaFile = "/app/configs/frp-tls/ca.crt"

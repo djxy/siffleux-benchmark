@@ -179,6 +179,34 @@ const TUNNELS: {
       args: ["--server", "/app/configs/rathole-noise/server.toml"],
     }),
   },
+  'frp-tls': {
+    client: (test_group, test_name) => ({
+      test_group,
+      test_name: `${test_name}-frpc`,
+      cmd: "frpc",
+      args: ["-c", "/app/configs/frp-tls/client.toml"],
+    }),
+    server: (test_group, test_name) => ({
+      test_group,
+      test_name: `${test_name}-frps`,
+      cmd: "frps",
+      args: ["-c", "/app/configs/frp-tls/server.toml"],
+    }),
+  },
+  'frp-quic': {
+    client: (test_group, test_name) => ({
+      test_group,
+      test_name: `${test_name}-frpc`,
+      cmd: "frpc",
+      args: ["-c", "/app/configs/frp-quic/client.toml"],
+    }),
+    server: (test_group, test_name) => ({
+      test_group,
+      test_name: `${test_name}-frps`,
+      cmd: "frps",
+      args: ["-c", "/app/configs/frp-quic/server.toml"],
+    }),
+  },
 };
 
 function handleSigint(...processes: Process[]) {

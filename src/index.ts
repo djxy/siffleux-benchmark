@@ -131,7 +131,7 @@ function set_open_connections_options(argv: Argv) {
   return argv.option("open-connections", {
     type: "number",
     describe: "Number of connections to open per second.",
-    default: 50,
+    default: 100,
   });
 }
 
@@ -147,7 +147,7 @@ function set_open_sockets_options(argv: Argv) {
   return argv.option("open-sockets", {
     type: "number",
     describe: "Number of sockets to open per second.",
-    default: 50,
+    default: 100,
   });
 }
 

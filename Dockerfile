@@ -11,7 +11,7 @@ COPY ./src ./src
 
 RUN npm run build
 
-FROM node:26-trixie-slim
+FROM node:26-trixie
 
 ARG TARGETARCH
 
@@ -59,6 +59,13 @@ RUN case "${TARGETARCH}" in \
     mv rathole /usr/local/bin/rathole && \
     chmod +x /usr/local/bin/rathole && \
     rm "rathole-${RATHOLE_ARCH}.zip"
+
+RUN wget https://github.com/fatedier/frp/releases/download/v0.70.1/frp_0.70.1_linux_${TARGETARCH}.tar.gz
+RUN tar -xf frp_0.70.1_linux_${TARGETARCH}.tar.gz
+RUN mv frp_0.70.1_linux_${TARGETARCH}/frpc /usr/local/bin/frpc
+RUN mv frp_0.70.1_linux_${TARGETARCH}/frps /usr/local/bin/frps
+RUN chmod +x /usr/local/bin/frpc
+RUN chmod +x /usr/local/bin/frps
 
 COPY /configs /app/configs
 
