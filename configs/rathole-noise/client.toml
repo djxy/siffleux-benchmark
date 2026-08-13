@@ -7,7 +7,13 @@ type = "noise"
 [client.transport.noise]
 remote_public_key = "GQYTKSbWLBUSZiGfdWPSgek9yoOuaiwGD/GIX8Z1kkE="
 
-[client.services.siffle]
+[client.services.siffle_tcp]
+type = "tcp"
+token = "secret!123"
+local_addr = "test-server:5678"
+
+[client.services.siffle_udp]
+type = "udp"
 token = "secret!123"
 local_addr = "test-server:5678"
 
@@ -15,10 +21,22 @@ local_addr = "test-server:5678"
 token = "secret!123"
 local_addr = "test-server:80"
 
-[client.services.iperf3]
+[client.services.iperf3_tcp]
+type = "tcp"
 token = "secret!123"
 local_addr = "test-server:5201"
 
-[client.services.tcp_echo]
+[client.services.iperf3_udp]
+type = "udp"
+token = "secret!123"
+local_addr = "test-server:5201"
+
+[client.services.echo_tcp]
+type = "tcp"
+token = "secret!123"
+local_addr = "test-server:3001"
+
+[client.services.echo_udp]
+type = "udp"
 token = "secret!123"
 local_addr = "test-server:3001"

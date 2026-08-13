@@ -36,7 +36,7 @@ RUN tar -xvf vegeta_12.12.0_linux_${TARGETARCH}.tar.gz
 RUN mv vegeta /usr/local/bin/
 RUN rm vegeta_12.12.0_linux_${TARGETARCH}.tar.gz
 
-RUN wget https://github.com/djxy/siffle/releases/download/1.0.0/siffle-linux-$(uname -m)
+RUN wget https://github.com/djxy/siffle/releases/download/1.1.0/siffle-linux-$(uname -m)
 RUN mv siffle-linux-$(uname -m) /usr/local/bin/siffle
 RUN chmod +x /usr/local/bin/siffle
 

@@ -7,7 +7,13 @@ type = "noise"
 [server.transport.noise]
 local_private_key = "cQ/vwIqNPJZmuM/OikglzBo/+jlYGrOt9i0k5h5vn1Q="
 
-[server.services.siffle]
+[server.services.siffle_tcp]
+type = "tcp"
+token = "secret!123"
+bind_addr = "0.0.0.0:9000"
+
+[server.services.siffle_udp]
+type = "udp"
 token = "secret!123"
 bind_addr = "0.0.0.0:9000"
 
@@ -15,10 +21,22 @@ bind_addr = "0.0.0.0:9000"
 token = "secret!123"
 bind_addr = "0.0.0.0:9001"
 
-[server.services.iperf3]
+[server.services.iperf3_tcp]
+type = "tcp"
 token = "secret!123"
 bind_addr = "0.0.0.0:9002"
 
-[server.services.tcp_echo]
+[server.services.iperf3_udp]
+type = "udp"
+token = "secret!123"
+bind_addr = "0.0.0.0:9002"
+
+[server.services.echo_tcp]
+type = "tcp"
+token = "secret!123"
+bind_addr = "0.0.0.0:9003"
+
+[server.services.echo_udp]
+type = "udp"
 token = "secret!123"
 bind_addr = "0.0.0.0:9003"

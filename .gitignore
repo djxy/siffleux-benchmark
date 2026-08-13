@@ -144,3 +144,5 @@ vite.config.ts.timestamp-*
 
 # Benchmark tests
 tests/
+
+.DS_Store

@@ -4,6 +4,7 @@ import fs from "fs/promises";
 import net, { Socket } from "net";
 import dgram from "dgram";
 import type { StartTunnelConfig } from "./tunnel.js";
+import { create_iperf3_chart, create_siffle_chart } from "./chart.js";
 
 export interface TestConfig {
   test: {
@@ -165,7 +166,7 @@ const TUNNELS: {
       args: ["server", "--config=/app/configs/siffleux/server.toml"],
     }),
   },
-  'rathole': {
+  rathole: {
     client: (test_group, test_name) => ({
       test_group,
       test_name: `${test_name}-rathole-client`,
@@ -179,7 +180,7 @@ const TUNNELS: {
       args: ["--server", "/app/configs/rathole-noise/server.toml"],
     }),
   },
-  'frp-tls': {
+  "frp-tls": {
     client: (test_group, test_name) => ({
       test_group,
       test_name: `${test_name}-frpc`,
@@ -193,7 +194,7 @@ const TUNNELS: {
       args: ["-c", "/app/configs/frp-tls/server.toml"],
     }),
   },
-  'frp-quic': {
+  "frp-quic": {
     client: (test_group, test_name) => ({
       test_group,
       test_name: `${test_name}-frpc`,
@@ -211,7 +212,7 @@ const TUNNELS: {
 
 function handleSigint(...processes: Process[]) {
   process.once("SIGINT", () => {
-    logger.info("\nTest aborted.");
+    logger.info("Test aborted.");
     processes.forEach((p) => p.kill());
   });
 }
@@ -226,7 +227,7 @@ export async function launch_http_stress_test(config: HttpTestConfig) {
 
   await start_tunnels(config);
 
-  const siffle = launch_siffle(config, "tcp");
+  const siffle = launch_siffle(config, "tcp", test_file_prefix);
   const vegeta = Process.spawn({
     cmd: "sh",
     args: [
@@ -243,15 +244,25 @@ export async function launch_http_stress_test(config: HttpTestConfig) {
 
   await Promise.all([vegeta.closed(), siffle.closed()]);
 
+  await create_siffle_chart(
+    `${test_file_prefix}-siffle.json`,
+    `${test_file_prefix}-siffle.jpeg`,
+  );
+
   logger.info("Finished HTTP stress test.");
 }
 
 export async function launch_tcp_latency_test(config: LatencyTestConfig) {
+  const test_file_prefix = await prepare_test_folder(
+    config.test.group,
+    config.test.name,
+  );
+
   await start_tunnels(config);
 
   logger.info("Starting TCP latency test.");
 
-  const siffle = launch_siffle(config, "tcp");
+  const siffle = launch_siffle(config, "tcp", test_file_prefix);
 
   logger.info("Siffle started.");
 
@@ -260,6 +271,11 @@ export async function launch_tcp_latency_test(config: LatencyTestConfig) {
   await Promise.all([siffle.closed()]);
 
   await stop_tunnels(config);
+
+  await create_siffle_chart(
+    `${test_file_prefix}-siffle.json`,
+    `${test_file_prefix}-siffle.jpeg`,
+  );
 
   logger.info("Finished latency test.");
 }
@@ -276,7 +292,7 @@ export async function launch_tcp_bandwidth_test(
 
   await start_tunnels(config);
 
-  const siffle = launch_siffle(config, "tcp");
+  const siffle = launch_siffle(config, "tcp", test_file_prefix);
 
   const iperf3 = Process.spawn({
     cmd: "iperf3",
@@ -292,9 +308,10 @@ export async function launch_tcp_bandwidth_test(
       "--bidir",
       "-b",
       `${config.iperf3.bandwidth}`,
+      "-J",
     ],
     stderr_file: `${test_file_prefix}-iperf3-client.err`,
-    stdout_file: `${test_file_prefix}-iperf3-client.log`,
+    stdout_file: `${test_file_prefix}-iperf3-client.json`,
   });
 
   logger.info("Iperf3 started.");
@@ -305,6 +322,16 @@ export async function launch_tcp_bandwidth_test(
 
   await stop_tunnels(config);
 
+  await create_iperf3_chart(
+    `${test_file_prefix}-iperf3-client.json`,
+    `${test_file_prefix}-iperf3-client.jpeg`,
+  );
+
+  await create_siffle_chart(
+    `${test_file_prefix}-siffle.json`,
+    `${test_file_prefix}-siffle.jpeg`,
+  );
+
   logger.info("Finished TCP bandwidth test.");
 }
 
@@ -313,9 +340,14 @@ export async function launch_tcp_idle_connection_test(
 ) {
   logger.info("Starting TCP idle connections test.");
 
+  const test_file_prefix = await prepare_test_folder(
+    config.test.group,
+    config.test.name,
+  );
+
   await start_tunnels(config);
 
-  const siffle = launch_siffle(config, "tcp");
+  const siffle = launch_siffle(config, "tcp", test_file_prefix);
 
   let socket_timeouts = 0;
   let socket_errors = 0;
@@ -392,6 +424,11 @@ export async function launch_tcp_idle_connection_test(
 
   await stop_tunnels(config);
 
+  await create_siffle_chart(
+    `${test_file_prefix}-siffle.json`,
+    `${test_file_prefix}-siffle.jpeg`,
+  );
+
   logger.info(`Closed connections.`);
 
   logger.info(
@@ -408,9 +445,14 @@ export async function launch_tcp_open_connections_test(
 ) {
   logger.info("Starting TCP open connections test.");
 
+  const test_file_prefix = await prepare_test_folder(
+    config.test.group,
+    config.test.name,
+  );
+
   await start_tunnels(config);
 
-  const siffle = launch_siffle(config, "tcp");
+  const siffle = launch_siffle(config, "tcp", test_file_prefix);
 
   let connection_id_counter = 0;
   let connected = 0;
@@ -476,6 +518,11 @@ export async function launch_tcp_open_connections_test(
 
   await stop_tunnels(config);
 
+  await create_siffle_chart(
+    `${test_file_prefix}-siffle.json`,
+    `${test_file_prefix}-siffle.jpeg`,
+  );
+
   logger.info(`Successful connections: ${connected}`);
   logger.info(`Failed connections: ${errors}`);
   logger.info(`Timeout connections: ${timeouts}`);
@@ -488,9 +535,14 @@ export async function launch_udp_idle_socket_test(
 ) {
   logger.info("Starting UDP idle sockets test.");
 
+  const test_file_prefix = await prepare_test_folder(
+    config.test.group,
+    config.test.name,
+  );
+
   await start_tunnels(config);
 
-  const siffle = launch_siffle(config, "udp");
+  const siffle = launch_siffle(config, "udp", test_file_prefix);
 
   let sockets_received_datagrams = 0;
   let datagrams_sent = 0;
@@ -547,6 +599,11 @@ export async function launch_udp_idle_socket_test(
 
   await stop_tunnels(config);
 
+  await create_siffle_chart(
+    `${test_file_prefix}-siffle.json`,
+    `${test_file_prefix}-siffle.jpeg`,
+  );
+
   logger.info(`Closed sockets.`);
 
   logger.info(`Datagrams sent: ${datagrams_sent}.`);
@@ -559,11 +616,16 @@ export async function launch_udp_idle_socket_test(
 }
 
 export async function launch_udp_latency_test(config: LatencyTestConfig) {
+  const test_file_prefix = await prepare_test_folder(
+    config.test.group,
+    config.test.name,
+  );
+
   await start_tunnels(config);
 
   logger.info("Starting UDP latency test.");
 
-  const siffle = launch_siffle(config, "udp");
+  const siffle = launch_siffle(config, "udp", test_file_prefix);
 
   logger.info("Siffle started.");
 
@@ -572,6 +634,11 @@ export async function launch_udp_latency_test(config: LatencyTestConfig) {
   await Promise.all([siffle.closed()]);
 
   await stop_tunnels(config);
+
+  await create_siffle_chart(
+    `${test_file_prefix}-siffle.json`,
+    `${test_file_prefix}-siffle.jpeg`,
+  );
 
   logger.info("Finished latency test.");
 }
@@ -588,7 +655,7 @@ export async function launch_udp_bandwidth_test(
 
   await start_tunnels(config);
 
-  const siffle = launch_siffle(config, "udp");
+  const siffle = launch_siffle(config, "udp", test_file_prefix);
 
   const iperf3 = Process.spawn({
     cmd: "iperf3",
@@ -607,9 +674,10 @@ export async function launch_udp_bandwidth_test(
       `${config.iperf3.bandwidth}`,
       "-l",
       `${config.iperf3.payload_size}`,
+      "-J",
     ],
     stderr_file: `${test_file_prefix}-iperf3-client.err`,
-    stdout_file: `${test_file_prefix}-iperf3-client.log`,
+    stdout_file: `${test_file_prefix}-iperf3-client.json`,
   });
 
   logger.info("Iperf3 started.");
@@ -620,6 +688,16 @@ export async function launch_udp_bandwidth_test(
 
   await stop_tunnels(config);
 
+  await create_iperf3_chart(
+    `${test_file_prefix}-iperf3-client.json`,
+    `${test_file_prefix}-iperf3-client.jpeg`,
+  );
+
+  await create_siffle_chart(
+    `${test_file_prefix}-siffle.json`,
+    `${test_file_prefix}-siffle.jpeg`,
+  );
+
   logger.info("Finished UDP bandwidth test.");
 }
 
@@ -628,9 +706,14 @@ export async function launch_udp_open_sockets_test(
 ) {
   logger.info("Starting UDP open sockets test.");
 
+  const test_file_prefix = await prepare_test_folder(
+    config.test.group,
+    config.test.name,
+  );
+
   await start_tunnels(config);
 
-  const siffle = launch_siffle(config, "tcp");
+  const siffle = launch_siffle(config, "udp", test_file_prefix);
 
   let socket_id_counter = 0;
   let socket_connected = 0;
@@ -687,6 +770,11 @@ export async function launch_udp_open_sockets_test(
 
   await stop_tunnels(config);
 
+  await create_siffle_chart(
+    `${test_file_prefix}-siffle.json`,
+    `${test_file_prefix}-siffle.jpeg`,
+  );
+
   logger.info(`Opened sockets: ${socket_connected}`);
   logger.info(`Message sent: ${message_sent}`);
   logger.info(`Message received: ${message_received}`);
@@ -741,6 +829,7 @@ async function stop_tunnel(endpoint: string, tunnel_id: string) {
 function launch_siffle(
   config: ServerConfig & DurationConfig & SiffleConfig,
   protocol: "udp" | "tcp",
+  test_file_prefix: string,
 ) {
   return Process.spawn({
     cmd: "siffle",
@@ -754,5 +843,7 @@ function launch_siffle(
       `${config.duration_seconds}`,
       "--mps=1000",
     ],
+    stderr_file: `${test_file_prefix}-siffle.err`,
+    stdout_file: `${test_file_prefix}-siffle.json`,
   });
 }

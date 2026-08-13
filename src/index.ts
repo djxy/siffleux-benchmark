@@ -234,7 +234,7 @@ const args_to_vegeta_config = (args: ArgumentsCamelCase): VegetaConfig => ({
 
 const args_to_test_config = (args: ArgumentsCamelCase): TestConfig => ({
   test: {
-    group: new Date().toISOString().replaceAll(":", "-"),
+    group: new Date().toISOString().replaceAll(":", "-").replaceAll(".", "-"),
     name: `${args._[0]}-${args._[1]}`,
   },
 });

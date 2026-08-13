@@ -35,7 +35,7 @@ The tests target the protocol layers 4 and 7. The goal is to compare apple-to-ap
 Starts [Siffle](https://github.com/djxy/siffle) to test latency over TCP.
 
 ```bash
-docker run --rm -it --network siffleux-benchmark_default siffleux-benchmark tcp latency --tunnel siffleux
+docker run --rm -it -v ./tests:/tests --network siffleux-benchmark_default siffleux-benchmark tcp latency --tunnel siffleux
 ```
 
 ### Bandwidth
@@ -49,14 +49,14 @@ docker run --rm -it -v ./tests:/tests --network siffleux-benchmark_default siffl
 Create multiple TCP connections to the server and keep them idle for the duration of the test. To prevent timeouts, each connection sends 1 byte each few seconds. 
 
 ```bash
-docker run --rm -it --network siffleux-benchmark_default siffleux-benchmark tcp idle-connections --tunnel siffleux
+docker run --rm -it -v ./tests:/tests --network siffleux-benchmark_default siffleux-benchmark tcp idle-connections --tunnel siffleux
 ```
 
 ### Open Connections Per Second
 Open a specific number of TCP connections per second and immediately close them once connected.
 
 ```bash
-docker run --rm -it --network siffleux-benchmark_default siffleux-benchmark tcp open-connections --tunnel siffleux
+docker run --rm -it -v ./tests:/tests --network siffleux-benchmark_default siffleux-benchmark tcp open-connections --tunnel siffleux
 ```
 
 ## UDP Tests
@@ -65,7 +65,7 @@ docker run --rm -it --network siffleux-benchmark_default siffleux-benchmark tcp 
 Starts [Siffle](https://github.com/djxy/siffle) to test latency over UDP.
 
 ```bash
-docker run --rm -it --network siffleux-benchmark_default siffleux-benchmark udp latency --tunnel siffleux
+docker run --rm -it -v ./tests:/tests --network siffleux-benchmark_default siffleux-benchmark udp latency --tunnel siffleux
 ```
 
 ### Bandwidth
@@ -79,14 +79,14 @@ docker run --rm -it -v ./tests:/tests --network siffleux-benchmark_default siffl
 Open a number of UDP sockets and keep them idle for the duration of the test. Each socket sends a 1 byte datagram each few seconds to prevent timeouts or expirations on the network path.
 
 ```bash
-docker run --rm -it --network siffleux-benchmark_default siffleux-benchmark udp idle-sockets --tunnel siffleux
+docker run --rm -it -v ./tests:/tests --network siffleux-benchmark_default siffleux-benchmark udp idle-sockets --tunnel siffleux
 ```
 
 ### Open Sockets Per Second
 Open a specific number of UDP sockets per second and immediately send some datagrams to the tunnel.
 
 ```bash
-docker run --rm -it --network siffleux-benchmark_default siffleux-benchmark udp open-sockets --tunnel siffleux
+docker run --rm -it -v ./tests:/tests --network siffleux-benchmark_default siffleux-benchmark udp open-sockets --tunnel siffleux
 ```
 
 ## HTTP Tests
