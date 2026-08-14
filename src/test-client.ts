@@ -4,7 +4,11 @@ import fs from "fs/promises";
 import net, { Socket } from "net";
 import dgram from "dgram";
 import type { StartTunnelConfig } from "./tunnel.js";
-import { create_iperf3_chart, create_siffle_chart } from "./chart.js";
+import {
+  create_iperf3_chart,
+  create_siffle_chart,
+  create_vegeta_chart,
+} from "./chart.js";
 
 export interface TestConfig {
   test: {
@@ -232,10 +236,10 @@ export async function launch_http_stress_test(config: HttpTestConfig) {
     cmd: "sh",
     args: [
       "-c",
-      `echo "GET http://${config.server_ip}:${config.nginx.port}" | vegeta attack -max-workers ${config.vegeta.max_workers} -rate 0 -duration ${config.duration_seconds}s | vegeta report -every=1s`,
+      `echo "GET http://${config.server_ip}:${config.nginx.port}" | vegeta attack -max-workers ${config.vegeta.max_workers} -rate 0 -duration ${config.duration_seconds}s | vegeta report -every=1s -type=json`,
     ],
     stderr_file: `${test_file_prefix}-vegeta.err`,
-    stdout_file: `${test_file_prefix}-vegeta.log`,
+    stdout_file: `${test_file_prefix}-vegeta.ndjson`,
   });
 
   logger.info("Vegeta started.");
@@ -244,9 +248,17 @@ export async function launch_http_stress_test(config: HttpTestConfig) {
 
   await Promise.all([vegeta.closed(), siffle.closed()]);
 
+  await stop_tunnels(config);
+
   await create_siffle_chart(
     `${test_file_prefix}-siffle.json`,
     `${test_file_prefix}-siffle.jpeg`,
+    "TCP",
+  );
+
+  await create_vegeta_chart(
+    `${test_file_prefix}-vegeta.ndjson`,
+    `${test_file_prefix}-vegeta.jpeg`,
   );
 
   logger.info("Finished HTTP stress test.");
@@ -275,6 +287,7 @@ export async function launch_tcp_latency_test(config: LatencyTestConfig) {
   await create_siffle_chart(
     `${test_file_prefix}-siffle.json`,
     `${test_file_prefix}-siffle.jpeg`,
+    "TCP",
   );
 
   logger.info("Finished latency test.");
@@ -325,11 +338,13 @@ export async function launch_tcp_bandwidth_test(
   await create_iperf3_chart(
     `${test_file_prefix}-iperf3-client.json`,
     `${test_file_prefix}-iperf3-client.jpeg`,
+    "TCP",
   );
 
   await create_siffle_chart(
     `${test_file_prefix}-siffle.json`,
     `${test_file_prefix}-siffle.jpeg`,
+    "TCP",
   );
 
   logger.info("Finished TCP bandwidth test.");
@@ -427,6 +442,7 @@ export async function launch_tcp_idle_connection_test(
   await create_siffle_chart(
     `${test_file_prefix}-siffle.json`,
     `${test_file_prefix}-siffle.jpeg`,
+    "TCP",
   );
 
   logger.info(`Closed connections.`);
@@ -521,6 +537,7 @@ export async function launch_tcp_open_connections_test(
   await create_siffle_chart(
     `${test_file_prefix}-siffle.json`,
     `${test_file_prefix}-siffle.jpeg`,
+    "TCP",
   );
 
   logger.info(`Successful connections: ${connected}`);
@@ -602,6 +619,7 @@ export async function launch_udp_idle_socket_test(
   await create_siffle_chart(
     `${test_file_prefix}-siffle.json`,
     `${test_file_prefix}-siffle.jpeg`,
+    'UDP'
   );
 
   logger.info(`Closed sockets.`);
@@ -638,6 +656,7 @@ export async function launch_udp_latency_test(config: LatencyTestConfig) {
   await create_siffle_chart(
     `${test_file_prefix}-siffle.json`,
     `${test_file_prefix}-siffle.jpeg`,
+    'UDP'
   );
 
   logger.info("Finished latency test.");
@@ -691,11 +710,13 @@ export async function launch_udp_bandwidth_test(
   await create_iperf3_chart(
     `${test_file_prefix}-iperf3-client.json`,
     `${test_file_prefix}-iperf3-client.jpeg`,
+    'UDP'
   );
 
   await create_siffle_chart(
     `${test_file_prefix}-siffle.json`,
     `${test_file_prefix}-siffle.jpeg`,
+    'UDP'
   );
 
   logger.info("Finished UDP bandwidth test.");
@@ -773,6 +794,7 @@ export async function launch_udp_open_sockets_test(
   await create_siffle_chart(
     `${test_file_prefix}-siffle.json`,
     `${test_file_prefix}-siffle.jpeg`,
+    'UDP'
   );
 
   logger.info(`Opened sockets: ${socket_connected}`);

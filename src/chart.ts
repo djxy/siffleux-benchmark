@@ -6,7 +6,10 @@ import {
   LineElement,
   PointElement,
   Title,
-  Legend
+  Legend,
+  BarController,
+  BarElement,
+  type ChartConfiguration,
 } from "chart.js";
 import { Canvas } from "canvas";
 import { writeFile, open, readFile } from "fs/promises";
@@ -14,17 +17,127 @@ import logger from "./logger.js";
 
 Chart.register(
   CategoryScale,
+  BarController,
+  BarElement,
   LineController,
   LineElement,
   LinearScale,
   PointElement,
   Title,
-  Legend
+  Legend,
 );
+
+const PALETTE = {
+  red: {
+    border: "#ff6384",
+    bg: "rgba(255, 99, 132, 1)",
+    bgTranslucent: "rgba(255, 99, 132, 0.2)",
+  },
+  blue: {
+    border: "#36a2eb",
+    bg: "rgba(54, 162, 235, 1)",
+    bgTranslucent: "rgba(54, 162, 235, 0.2)",
+  },
+  teal: {
+    border: "#4bc0c0",
+    bg: "rgba(75, 192, 192, 1)",
+    bgTranslucent: "rgba(75, 192, 192, 0.2)",
+  },
+  purple: {
+    border: "#9966ff",
+    bg: "rgba(153, 102, 255, 1)",
+    bgTranslucent: "rgba(153, 102, 255, 0.2)",
+  },
+  orange: {
+    border: "#ff9f40",
+    bg: "rgba(255, 159, 64, 1)",
+    bgTranslucent: "rgba(255, 159, 64, 0.2)",
+  },
+  yellow: {
+    border: "#ffce56",
+    bg: "rgba(255, 206, 86, 1)",
+    bgTranslucent: "rgba(255, 206, 86, 0.2)",
+  },
+};
+
+const PERCENTILE_COLORS = {
+  p50: PALETTE.red,
+  p75: PALETTE.blue,
+  p90: PALETTE.teal,
+  p95: PALETTE.yellow,
+  p99: PALETTE.purple,
+};
+
+const backgroundColorPlugin = {
+  id: "bg-color",
+  beforeDraw: (chart: Chart, _args: any, options: { color?: string }) => {
+    const { ctx } = chart;
+    ctx.save();
+    ctx.globalCompositeOperation = "destination-over";
+    ctx.fillStyle = options.color || "#ffffff";
+    ctx.fillRect(0, 0, chart.width, chart.height);
+    ctx.restore();
+  },
+};
+
+function getBaseChartOptions(titleText: string): any {
+  return {
+    animation: false,
+    responsive: false,
+    plugins: {
+      legend: {
+        position: "bottom",
+      },
+      title: {
+        display: true,
+        text: titleText,
+      },
+    },
+    scales: {
+      x: {
+        title: {
+          display: true,
+          text: "Time (s)",
+        },
+        ticks: {
+          callback: (value: any) => `${value}s`,
+        },
+      },
+    },
+  };
+}
+
+/**
+ * Handles chart initialization, rendering, canvas exporting, and memory cleanup.
+ */
+async function renderAndSaveChart(
+  chartConfig: ChartConfiguration,
+  outputPath: string,
+  chartName: string,
+  width = 1200,
+  height = 400,
+) {
+  logger.info(`Creating ${chartName} chart...`);
+
+  const canvas = new Canvas(width, height);
+  chartConfig.plugins = [...(chartConfig.plugins || []), backgroundColorPlugin];
+
+  const chart = new Chart(canvas as any, chartConfig);
+
+  await writeFile(outputPath, canvas.createJPEGStream({ quality: 0.9 }));
+
+  chart.destroy();
+  logger.info(`Created ${chartName} chart`);
+}
+
+// ============================================================================
+// Chart Generators
+// ============================================================================
 
 export async function create_siffle_chart(
   siffle_json_file: string,
   siffle_graph_jpg_file: string,
+  protocol: "UDP" | "TCP",
 ) {
   const siffle_json = JSON.parse((await readFile(siffle_json_file)).toString());
   const p50: number[] = [];
@@ -39,93 +152,67 @@ export async function create_siffle_chart(
     p99.push(interval.latency.p99);
   });
 
-  logger.info("Creating siffle chart.");
-
-  const canvas = new Canvas(1200, 400);
-  const chart = new Chart(canvas as any, {
-    type: "line",
-    data: {
-      labels: Array.from({ length: p50.length }, (_, i) => i),
-      datasets: [
-        {
-          label: "p50",
-          data: p50,
-          borderColor: "#ff6384",
-          backgroundColor: "rgba(255, 99, 132, 0.2)",
-        },
-        {
-          label: "p75",
-          data: p75,
-          borderColor: "#36a2eb",
-          backgroundColor: "rgba(54, 162, 235, 0.2)",
-        },
-        {
-          label: "p90",
-          data: p90,
-          borderColor: "#4bc0c0",
-          backgroundColor: "rgba(75, 192, 192, 0.2)",
-        },
-        {
-          label: "p99",
-          data: p99,
-          borderColor: "#9966ff",
-          backgroundColor: "rgba(153, 102, 255, 0.2)",
-        },
-      ],
-    },
-    options: {
-      animation: false,
-      responsive: false,
-      plugins: {
-        legend: {
-          position: "bottom",
-        },
-        title: {
-          display: true,
-          text: "Latency Percentiles | Siffle",
-        },
-      },
-      scales: {
-        x: {
-          ticks: {
-            callback: (value) => `${value}s`,
-          },
-        },
-        y: {
-          ticks: {
-            callback: (value) => formatMicroseconds(value as number),
-          },
-        },
-      },
-    },
-    plugins: [
-      {
-        id: "bg-color",
-        beforeDraw: (chart, args, options) => {
-          const { ctx } = chart;
-          ctx.save();
-          ctx.globalCompositeOperation = "destination-over";
-          ctx.fillStyle = options.color || "#ffffff";
-          ctx.fillRect(0, 0, chart.width, chart.height);
-          ctx.restore();
-        },
-      },
-    ],
-  });
-
-  await writeFile(
-    siffle_graph_jpg_file,
-    canvas.createJPEGStream({ quality: 0.9 }),
+  const baseOptions = getBaseChartOptions(
+    `${protocol} Latency Percentiles | Siffle`,
   );
 
-  chart.destroy();
-
-  logger.info(`Created siffle chart`);
+  await renderAndSaveChart(
+    {
+      type: "line",
+      data: {
+        labels: Array.from({ length: p50.length }, (_, i) => i),
+        datasets: [
+          {
+            label: "p50",
+            data: p50,
+            borderColor: PERCENTILE_COLORS.p50.border,
+            backgroundColor: PERCENTILE_COLORS.p50.bg,
+          },
+          {
+            label: "p75",
+            data: p75,
+            borderColor: PERCENTILE_COLORS.p75.border,
+            backgroundColor: PERCENTILE_COLORS.p75.bg,
+          },
+          {
+            label: "p90",
+            data: p90,
+            borderColor: PERCENTILE_COLORS.p90.border,
+            backgroundColor: PERCENTILE_COLORS.p90.bg,
+          },
+          {
+            label: "p99",
+            data: p99,
+            borderColor: PERCENTILE_COLORS.p99.border,
+            backgroundColor: PERCENTILE_COLORS.p99.bg,
+          },
+        ],
+      },
+      options: {
+        ...baseOptions,
+        scales: {
+          ...baseOptions.scales,
+          y: {
+            title: {
+              display: true,
+              text: "Latency",
+            },
+            ticks: {
+              callback: (value) => formatMicroseconds(value as number),
+            },
+          },
+        },
+      },
+    },
+    siffle_graph_jpg_file,
+    "siffle",
+  );
 }
 
 export async function create_iperf3_chart(
   iperf3_json_file: string,
   iperf3_graph_jpg_file: string,
+  protocol: "UDP" | "TCP",
 ) {
   const iperf3_json = JSON.parse((await readFile(iperf3_json_file)).toString());
   const upload_intervals = [0];
@@ -137,76 +224,47 @@ export async function create_iperf3_chart(
     download_intervals.push(interval.sum_bidir_reverse.bytes);
   });
 
-  logger.info("Creating iperf3 chart.");
+  const baseOptions = getBaseChartOptions(`${protocol} Bandwidth | iPerf3`);
 
-  const canvas = new Canvas(1200, 400);
-  const chart = new Chart(canvas as any, {
-    type: "line",
-    data: {
-      labels: Array.from({ length: upload_intervals.length }, (_, i) => i),
-      datasets: [
-        {
-          label: "Upload",
-          data: upload_intervals,
-          borderColor: "#ff6384",
-          backgroundColor: "rgba(255, 99, 132, 0.2)",
-        },
-        {
-          label: "Download",
-          data: download_intervals,
-          borderColor: "#36a2eb",
-          backgroundColor: "rgba(54, 162, 235, 0.2)",
-        },
-      ],
-    },
-    options: {
-      animation: false,
-      responsive: false,
-      plugins: {
-        legend: {
-          position: "bottom",
-        },
-        title: {
-          display: true,
-          text: "Bandwidth | Iperf3",
-        },
-      },
-      scales: {
-        x: {
-          ticks: {
-            callback: (value) => `${value}s`,
+  await renderAndSaveChart(
+    {
+      type: "line",
+      data: {
+        labels: Array.from({ length: upload_intervals.length }, (_, i) => i),
+        datasets: [
+          {
+            label: "Upload",
+            data: upload_intervals,
+            borderColor: PALETTE.red.border,
+            backgroundColor: PALETTE.red.bg,
           },
-        },
-        y: {
-          ticks: {
-            callback: (value) => formatBytes(value as number),
+          {
+            label: "Download",
+            data: download_intervals,
+            borderColor: PALETTE.blue.border,
+            backgroundColor: PALETTE.blue.bg,
+          },
+        ],
+      },
+      options: {
+        ...baseOptions,
+        scales: {
+          ...baseOptions.scales,
+          y: {
+            title: {
+              display: true,
+              text: "Bandwidth",
+            },
+            ticks: {
+              callback: (value) => formatBytes(value as number),
+            },
           },
         },
       },
     },
-    plugins: [
-      {
-        id: "bg-color",
-        beforeDraw: (chart, args, options) => {
-          const { ctx } = chart;
-          ctx.save();
-          ctx.globalCompositeOperation = "destination-over";
-          ctx.fillStyle = options.color || "#ffffff";
-          ctx.fillRect(0, 0, chart.width, chart.height);
-          ctx.restore();
-        },
-      },
-    ],
-  });
-
-  await writeFile(
     iperf3_graph_jpg_file,
-    canvas.createJPEGStream({ quality: 0.9 }),
+    "iperf3",
   );
-
-  chart.destroy();
-
-  logger.info(`Created iperf3 chart`);
 }
 
 export async function create_pidstat_chart(
@@ -240,104 +298,176 @@ export async function create_pidstat_chart(
     }
   }
 
-  logger.info(`Creating pidstat chart`);
+  const baseOptions = getBaseChartOptions("CPU & RAM Usage | Pidstat");
 
-  const canvas = new Canvas(1200, 400);
-  const chart = new Chart(canvas as any, {
-    type: "line",
-    data: {
-      labels: Array.from({ length: cpu.length }, (_, i) => i),
-      datasets: [
-        {
-          label: "CPU Usage",
-          data: cpu,
-          borderColor: "#ff6384",
-          backgroundColor: "rgba(255, 99, 132, 0.2)",
-          yAxisID: "yCPU",
-        },
-        {
-          label: "Memory Usage",
-          data: memory,
-          borderColor: "#36a2eb",
-          backgroundColor: "rgba(54, 162, 235, 0.2)",
-          yAxisID: "yMemory",
-        },
-      ],
-    },
-    options: {
-      animation: false,
-      responsive: false,
-      plugins: {
-        legend: {
-          position: "bottom",
-        },
-        title: {
-          display: true,
-          text: "Resources | Pidstat",
-        },
+  await renderAndSaveChart(
+    {
+      type: "line",
+      data: {
+        labels: Array.from({ length: cpu.length }, (_, i) => i),
+        datasets: [
+          {
+            label: "CPU Usage",
+            data: cpu,
+            borderColor: PALETTE.red.border,
+            backgroundColor: PALETTE.red.bg,
+            yAxisID: "yCPU",
+          },
+          {
+            label: "Memory Usage",
+            data: memory,
+            borderColor: PALETTE.blue.border,
+            backgroundColor: PALETTE.blue.bg,
+            yAxisID: "yMemory",
+          },
+        ],
       },
-      scales: {
-        x: {
-          ticks: {
-            callback: (value) => `${value}s`,
+      options: {
+        ...baseOptions,
+        scales: {
+          ...baseOptions.scales,
+          yCPU: {
+            type: "linear",
+            position: "left",
+            min: 0,
+            title: {
+              display: true,
+              text: "CPU Usage",
+              color: PALETTE.red.border,
+              font: { weight: "bold" },
+            },
+            ticks: {
+              callback: (value) => `${value}%`,
+            },
           },
-        },
-        yCPU: {
-          type: "linear",
-          position: "left",
-          min: 0,
-          title: {
-            display: true,
-            text: "CPU Usage",
-            color: "#ff6384",
-            font: { weight: "bold" },
-          },
-          ticks: {
-            callback: (value) => `${value}%`,
-          },
-        },
-        yMemory: {
-          type: "linear",
-          position: "right",
-          min: 0,
-          title: {
-            display: true,
-            text: "Memory Usage",
-            color: "#36a2eb",
-            font: { weight: "bold" },
-          },
-          ticks: {
-            callback: (value) => formatBytes(value as number),
-          },
-          grid: {
-            drawOnChartArea: false,
+          yMemory: {
+            type: "linear",
+            position: "right",
+            min: 0,
+            title: {
+              display: true,
+              text: "Memory Usage",
+              color: PALETTE.blue.border,
+              font: { weight: "bold" },
+            },
+            ticks: {
+              callback: (value) => formatBytes(value as number),
+            },
           },
         },
       },
     },
-    plugins: [
-      {
-        id: "bg-color",
-        beforeDraw: (chart, args, options) => {
-          const { ctx } = chart;
-          ctx.save();
-          ctx.globalCompositeOperation = "destination-over";
-          ctx.fillStyle = options.color || "#ffffff";
-          ctx.fillRect(0, 0, chart.width, chart.height);
-          ctx.restore();
-        },
-      },
-    ],
-  });
-
-  await writeFile(
     pidstat_graph_jpg_file,
-    canvas.createJPEGStream({ quality: 0.9 }),
+    "pidstat",
   );
+}
 
-  chart.destroy();
+export async function create_vegeta_chart(
+  vegeta_ndjson_file: string,
+  vegeta_graph_jpg_file: string,
+) {
+  const vegeta_file = await open(vegeta_ndjson_file);
+  const requests_per_interval: number[] = [];
+  const p50: number[] = [];
+  const p90: number[] = [];
+  const p95: number[] = [];
+  const p99: number[] = [];
+  let previous_requests = 0;
 
-  logger.info(`Created pidstat chart`);
+  for await (let line of vegeta_file.readLines()) {
+    const interval = JSON.parse(line.substring(line.indexOf("{")));
+
+    requests_per_interval.push(interval.requests - previous_requests);
+    previous_requests = interval.requests;
+
+    p50.push(interval.latencies["50th"]);
+    p90.push(interval.latencies["90th"]);
+    p95.push(interval.latencies["95th"]);
+    p99.push(interval.latencies["99th"]);
+  }
+
+  const baseOptions = getBaseChartOptions("HTTP Throughput & Latency | Vegeta");
+
+  await renderAndSaveChart(
+    {
+      type: "line",
+      data: {
+        labels: Array.from({ length: p50.length }, (_, i) => i),
+        datasets: [
+          {
+            label: "p50",
+            data: p50,
+            backgroundColor: PERCENTILE_COLORS.p50.bg,
+            borderColor: PERCENTILE_COLORS.p50.border,
+            yAxisID: "yLatency",
+          },
+          {
+            label: "p90",
+            data: p90,
+            backgroundColor: PERCENTILE_COLORS.p90.bg,
+            borderColor: PERCENTILE_COLORS.p90.border,
+            yAxisID: "yLatency",
+          },
+          {
+            label: "p95",
+            data: p95,
+            backgroundColor: PERCENTILE_COLORS.p95.bg,
+            borderColor: PERCENTILE_COLORS.p95.border,
+            yAxisID: "yLatency",
+          },
+          {
+            label: "p99",
+            data: p99,
+            backgroundColor: PERCENTILE_COLORS.p99.bg,
+            borderColor: PERCENTILE_COLORS.p99.border,
+            yAxisID: "yLatency",
+          },
+          {
+            type: "bar",
+            label: "Requests / sec",
+            data: requests_per_interval,
+            backgroundColor: PALETTE.orange.bgTranslucent,
+            borderColor: PALETTE.orange.border,
+            yAxisID: "yRequests",
+          },
+        ],
+      },
+      options: {
+        ...baseOptions,
+        scales: {
+          ...baseOptions.scales,
+          yLatency: {
+            title: {
+              display: true,
+              text: "Latency",
+            },
+            ticks: {
+              callback: (value) => formatMicroseconds((value as number) / 1000),
+            },
+          },
+          yRequests: {
+            type: "linear",
+            position: "right",
+            min: 0,
+            title: {
+              display: true,
+              text: "Requests / sec",
+              color: PALETTE.orange.border,
+              font: { weight: "bold" },
+            },
+            ticks: {
+              callback: (value) => `${value} req/s`,
+            },
+            grid: {
+              drawOnChartArea: false,
+            },
+          },
+        },
+      },
+    },
+    vegeta_graph_jpg_file,
+    "vegeta",
+  );
 }
 
 function formatBytes(bytes: number) {
@@ -345,7 +475,6 @@ function formatBytes(bytes: number) {
 
   const k = 1000;
   const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB"];
-
   const i = Math.floor(Math.log(bytes) / Math.log(k));
 
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
