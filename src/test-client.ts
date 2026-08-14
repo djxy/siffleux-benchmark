@@ -8,7 +8,8 @@ import {
   create_iperf3_chart,
   create_siffle_chart,
   create_vegeta_chart,
-} from "./chart.js";
+} from "./charts.js";
+import { save_report, siffle_summary } from "./report.js";
 
 export interface TestConfig {
   test: {
@@ -288,6 +289,16 @@ export async function launch_tcp_latency_test(config: LatencyTestConfig) {
     `${test_file_prefix}-siffle.json`,
     `${test_file_prefix}-siffle.jpeg`,
     "TCP",
+  );
+
+  await save_report(
+    [
+      siffle_summary(
+        `${test_file_prefix}-siffle.json`,
+        `${test_file_prefix}-siffle.jpeg`,
+      ),
+    ],
+    `${test_file_prefix}-report.md`,
   );
 
   logger.info("Finished latency test.");
@@ -619,7 +630,7 @@ export async function launch_udp_idle_socket_test(
   await create_siffle_chart(
     `${test_file_prefix}-siffle.json`,
     `${test_file_prefix}-siffle.jpeg`,
-    'UDP'
+    "UDP",
   );
 
   logger.info(`Closed sockets.`);
@@ -656,7 +667,7 @@ export async function launch_udp_latency_test(config: LatencyTestConfig) {
   await create_siffle_chart(
     `${test_file_prefix}-siffle.json`,
     `${test_file_prefix}-siffle.jpeg`,
-    'UDP'
+    "UDP",
   );
 
   logger.info("Finished latency test.");
@@ -710,13 +721,13 @@ export async function launch_udp_bandwidth_test(
   await create_iperf3_chart(
     `${test_file_prefix}-iperf3-client.json`,
     `${test_file_prefix}-iperf3-client.jpeg`,
-    'UDP'
+    "UDP",
   );
 
   await create_siffle_chart(
     `${test_file_prefix}-siffle.json`,
     `${test_file_prefix}-siffle.jpeg`,
-    'UDP'
+    "UDP",
   );
 
   logger.info("Finished UDP bandwidth test.");
@@ -794,7 +805,7 @@ export async function launch_udp_open_sockets_test(
   await create_siffle_chart(
     `${test_file_prefix}-siffle.json`,
     `${test_file_prefix}-siffle.jpeg`,
-    'UDP'
+    "UDP",
   );
 
   logger.info(`Opened sockets: ${socket_connected}`);

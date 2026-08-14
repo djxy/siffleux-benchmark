@@ -1,6 +1,6 @@
 import Fastify from "fastify";
 import { prepare_test_folder, Process, sleep } from "./process.js";
-import { create_pidstat_chart } from "./chart.js";
+import { create_pidstat_chart } from "./charts.js";
 
 export interface StartTunnelConfig {
   test_group: string;

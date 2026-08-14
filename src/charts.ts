@@ -14,6 +14,8 @@ import {
 import { Canvas } from "canvas";
 import { writeFile, open, readFile } from "fs/promises";
 import logger from "./logger.js";
+import { load_siffle_data } from "./exporters.js";
+import { formatBytes, formatMicroseconds } from "./formats.js";
 
 Chart.register(
   CategoryScale,
@@ -130,16 +132,12 @@ async function renderAndSaveChart(
   logger.info(`Created ${chartName} chart`);
 }
 
-// ============================================================================
-// Chart Generators
-// ============================================================================
-
 export async function create_siffle_chart(
   siffle_json_file: string,
   siffle_graph_jpg_file: string,
   protocol: "UDP" | "TCP",
 ) {
-  const siffle_json = JSON.parse((await readFile(siffle_json_file)).toString());
+  const siffle_json = await load_siffle_data(siffle_json_file);
   const p50: number[] = [];
   const p75: number[] = [];
   const p90: number[] = [];
@@ -298,7 +296,7 @@ export async function create_pidstat_chart(
     }
   }
 
-  const baseOptions = getBaseChartOptions("CPU & RAM Usage | Pidstat");
+  const baseOptions = getBaseChartOptions("CPU & Memory Usage | Pidstat");
 
   await renderAndSaveChart(
     {
@@ -468,38 +466,4 @@ export async function create_vegeta_chart(
     vegeta_graph_jpg_file,
     "vegeta",
   );
-}
-
-function formatBytes(bytes: number) {
-  if (bytes === 0) return "0 Bytes";
-
-  const k = 1000;
-  const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
-}
-
-function formatMicroseconds(microseconds: number) {
-  if (microseconds < 0) return "0µs";
-  if (microseconds < 1000) return `${microseconds}µs`;
-
-  const units = [
-    { label: "s", value: 1000000 },
-    { label: "ms", value: 1000 },
-    { label: "µs", value: 1 },
-  ];
-
-  const parts = [];
-  let remaining = microseconds;
-
-  for (const { label, value } of units) {
-    if (remaining >= value) {
-      const count = Math.floor(remaining / value);
-      remaining %= value;
-      parts.push(`${count}${label}`);
-    }
-  }
-
-  return parts.slice(0, 2).join(" ");
 }
