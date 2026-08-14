@@ -102,7 +102,7 @@ function getBaseChartOptions(titleText: string): any {
           text: "Time (s)",
         },
         ticks: {
-          callback: (value: any) => `${value}s`,
+          callback: (value: any) => `${value + 1}s`,
         },
       },
     },

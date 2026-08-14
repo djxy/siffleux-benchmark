@@ -9,7 +9,7 @@ import {
   create_siffle_chart,
   create_vegeta_chart,
 } from "./charts.js";
-import { save_report, siffle_summary } from "./report.js";
+import { save_reports, create_siffle_report } from "./report.js";
 
 export interface TestConfig {
   test: {
@@ -160,13 +160,13 @@ const TUNNELS: {
   siffleux: {
     client: (test_group, test_name) => ({
       test_group,
-      test_name: `${test_name}-siffleux-client`,
+      test_name: `${test_name}-client`,
       cmd: "siffleux",
       args: ["client", "--config=/app/configs/siffleux/client.toml"],
     }),
     server: (test_group, test_name) => ({
       test_group,
-      test_name: `${test_name}-siffleux-server`,
+      test_name: `${test_name}-server`,
       cmd: "siffleux",
       args: ["server", "--config=/app/configs/siffleux/server.toml"],
     }),
@@ -174,13 +174,13 @@ const TUNNELS: {
   rathole: {
     client: (test_group, test_name) => ({
       test_group,
-      test_name: `${test_name}-rathole-client`,
+      test_name: `${test_name}-client`,
       cmd: "rathole",
       args: ["--client", "/app/configs/rathole-noise/client.toml"],
     }),
     server: (test_group, test_name) => ({
       test_group,
-      test_name: `${test_name}-rathole-server`,
+      test_name: `${test_name}-server`,
       cmd: "rathole",
       args: ["--server", "/app/configs/rathole-noise/server.toml"],
     }),
@@ -188,13 +188,13 @@ const TUNNELS: {
   "frp-tls": {
     client: (test_group, test_name) => ({
       test_group,
-      test_name: `${test_name}-frpc`,
+      test_name: `${test_name}-client`,
       cmd: "frpc",
       args: ["-c", "/app/configs/frp-tls/client.toml"],
     }),
     server: (test_group, test_name) => ({
       test_group,
-      test_name: `${test_name}-frps`,
+      test_name: `${test_name}-server`,
       cmd: "frps",
       args: ["-c", "/app/configs/frp-tls/server.toml"],
     }),
@@ -202,13 +202,13 @@ const TUNNELS: {
   "frp-quic": {
     client: (test_group, test_name) => ({
       test_group,
-      test_name: `${test_name}-frpc`,
+      test_name: `${test_name}-client`,
       cmd: "frpc",
       args: ["-c", "/app/configs/frp-quic/client.toml"],
     }),
     server: (test_group, test_name) => ({
       test_group,
-      test_name: `${test_name}-frps`,
+      test_name: `${test_name}-server`,
       cmd: "frps",
       args: ["-c", "/app/configs/frp-quic/server.toml"],
     }),
@@ -291,9 +291,10 @@ export async function launch_tcp_latency_test(config: LatencyTestConfig) {
     "TCP",
   );
 
-  await save_report(
+  await save_reports(
+    config,
     [
-      siffle_summary(
+      create_siffle_report(
         `${test_file_prefix}-siffle.json`,
         `${test_file_prefix}-siffle.jpeg`,
       ),
