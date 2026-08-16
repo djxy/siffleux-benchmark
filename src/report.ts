@@ -21,7 +21,7 @@ export async function create_siffle_report(
   return `
 ### Siffle
 
-TCP latency (RTT) percentiles recorded over a test run with Siffle.
+TCP latency (RTT) percentiles recorded during the Siffle benchmark test.
 
 #### Real-Time Latency (1s Intervals)
 
