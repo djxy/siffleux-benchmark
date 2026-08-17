@@ -14,8 +14,14 @@ import {
 import { Canvas } from "canvas";
 import { writeFile, open, readFile } from "fs/promises";
 import logger from "./logger.js";
-import { load_siffle_data } from "./exporters.js";
-import { formatBytes, formatMicroseconds } from "./formats.js";
+import {
+  load_pidstat_data,
+  load_siffle_data,
+  load_vegeta_data,
+} from "./exporters.js";
+import { format_bytes, format_microseconds } from "./formats.js";
+import type { TunnelOutputFiles } from "./tunnel.js";
+import type { TestClientOutputFiles } from "./test-client.js";
 
 Chart.register(
   CategoryScale,
@@ -109,35 +115,35 @@ function getBaseChartOptions(titleText: string): any {
   };
 }
 
-/**
- * Handles chart initialization, rendering, canvas exporting, and memory cleanup.
- */
 async function renderAndSaveChart(
-  chartConfig: ChartConfiguration,
-  outputPath: string,
-  chartName: string,
+  chart_config: ChartConfiguration,
+  output_path: string,
   width = 1200,
   height = 400,
 ) {
-  logger.info(`Creating ${chartName} chart...`);
+  logger.info(
+    `Creating ${chart_config.options?.plugins?.title?.text} chart...`,
+  );
 
   const canvas = new Canvas(width, height);
-  chartConfig.plugins = [...(chartConfig.plugins || []), backgroundColorPlugin];
+  chart_config.plugins = [
+    ...(chart_config.plugins || []),
+    backgroundColorPlugin,
+  ];
 
-  const chart = new Chart(canvas as any, chartConfig);
+  const chart = new Chart(canvas as any, chart_config);
 
-  await writeFile(outputPath, canvas.createJPEGStream({ quality: 0.9 }));
+  await writeFile(output_path, canvas.createJPEGStream({ quality: 0.9 }));
 
   chart.destroy();
-  logger.info(`Created ${chartName} chart`);
+  logger.info(`Created ${chart_config.options?.plugins?.title?.text} chart`);
 }
 
 export async function create_siffle_chart(
-  siffle_json_file: string,
-  siffle_graph_jpg_file: string,
+  test_client_output_files: TestClientOutputFiles,
   protocol: "UDP" | "TCP",
 ) {
-  const siffle_json = await load_siffle_data(siffle_json_file);
+  const siffle_json = await load_siffle_data(test_client_output_files);
   const p50: number[] = [];
   const p75: number[] = [];
   const p90: number[] = [];
@@ -196,23 +202,23 @@ export async function create_siffle_chart(
               text: "Latency",
             },
             ticks: {
-              callback: (value) => formatMicroseconds(value as number),
+              callback: (value) => format_microseconds(value as number),
             },
           },
         },
       },
     },
-    siffle_graph_jpg_file,
-    "siffle",
+    test_client_output_files.siffle_graph_jpg,
   );
 }
 
 export async function create_iperf3_chart(
-  iperf3_json_file: string,
-  iperf3_graph_jpg_file: string,
+  test_client_output_files: TestClientOutputFiles,
   protocol: "UDP" | "TCP",
 ) {
-  const iperf3_json = JSON.parse((await readFile(iperf3_json_file)).toString());
+  const iperf3_json = JSON.parse(
+    (await readFile(test_client_output_files.iperf3_stdout)).toString(),
+  );
   const upload_intervals = [0];
   const download_intervals = [0];
   const intervals = iperf3_json.intervals as any[];
@@ -254,48 +260,20 @@ export async function create_iperf3_chart(
               text: "Bandwidth",
             },
             ticks: {
-              callback: (value) => formatBytes(value as number),
+              callback: (value) => format_bytes(value as number),
             },
           },
         },
       },
     },
-    iperf3_graph_jpg_file,
-    "iperf3",
+    test_client_output_files.iperf3_graph_jpeg,
   );
 }
 
 export async function create_pidstat_chart(
-  pidstat_log_file: string,
-  pidstat_graph_jpg_file: string,
+  tunnel_output_files: TunnelOutputFiles,
 ) {
-  const file = await open(pidstat_log_file);
-  const memory: number[] = [];
-  const cpu: number[] = [];
-
-  for await (let line of file.readLines()) {
-    line = line.trim();
-
-    if (line.length === 0) {
-      continue;
-    }
-
-    let values = line.match(/\S+/g) || [];
-
-    if (values[1] === "UID") {
-      continue;
-    }
-
-    switch (values.length) {
-      case 9: // Memory
-        memory.push(parseInt(values[6] as string) * 1024);
-        break;
-      case 10: // CPU
-        cpu.push(parseFloat(values[7] as string));
-        break;
-    }
-  }
-
+  const { cpu, memory } = await load_pidstat_data(tunnel_output_files);
   const baseOptions = getBaseChartOptions("CPU & Memory Usage | Pidstat");
 
   await renderAndSaveChart(
@@ -330,7 +308,7 @@ export async function create_pidstat_chart(
             min: 0,
             title: {
               display: true,
-              text: "CPU Usage",
+              text: "CPU",
               color: PALETTE.red.border,
               font: { weight: "bold" },
             },
@@ -344,47 +322,30 @@ export async function create_pidstat_chart(
             min: 0,
             title: {
               display: true,
-              text: "Memory Usage",
+              text: "Memory",
               color: PALETTE.blue.border,
               font: { weight: "bold" },
             },
             ticks: {
-              callback: (value) => formatBytes(value as number),
+              callback: (value) => format_bytes(value as number),
             },
           },
         },
       },
     },
-    pidstat_graph_jpg_file,
-    "pidstat",
+    tunnel_output_files.pidstat_graph_jpg,
   );
 }
 
 export async function create_vegeta_chart(
-  vegeta_ndjson_file: string,
-  vegeta_graph_jpg_file: string,
+  test_client_output_files: TestClientOutputFiles,
 ) {
-  const vegeta_file = await open(vegeta_ndjson_file);
-  const requests_per_interval: number[] = [];
-  const p50: number[] = [];
-  const p90: number[] = [];
-  const p95: number[] = [];
-  const p99: number[] = [];
-  let previous_requests = 0;
-
-  for await (let line of vegeta_file.readLines()) {
-    const interval = JSON.parse(line.substring(line.indexOf("{")));
-
-    requests_per_interval.push(interval.requests - previous_requests);
-    previous_requests = interval.requests;
-
-    p50.push(interval.latencies["50th"]);
-    p90.push(interval.latencies["90th"]);
-    p95.push(interval.latencies["95th"]);
-    p99.push(interval.latencies["99th"]);
-  }
-
-  const baseOptions = getBaseChartOptions("HTTP Throughput & Latency | Vegeta");
+  const { p50, p90, p95, p99, requests_per_second } = await load_vegeta_data(
+    test_client_output_files,
+  );
+  const baseOptions = getBaseChartOptions(
+    "HTTP Requests Per Second & Latency | Vegeta",
+  );
 
   await renderAndSaveChart(
     {
@@ -423,7 +384,7 @@ export async function create_vegeta_chart(
           {
             type: "bar",
             label: "Requests / sec",
-            data: requests_per_interval,
+            data: requests_per_second,
             backgroundColor: PALETTE.orange.bgTranslucent,
             borderColor: PALETTE.orange.border,
             yAxisID: "yRequests",
@@ -440,7 +401,7 @@ export async function create_vegeta_chart(
               text: "Latency",
             },
             ticks: {
-              callback: (value) => formatMicroseconds((value as number) / 1000),
+              callback: (value) => format_microseconds((value as number) / 1000),
             },
           },
           yRequests: {
@@ -463,7 +424,6 @@ export async function create_vegeta_chart(
         },
       },
     },
-    vegeta_graph_jpg_file,
-    "vegeta",
+    test_client_output_files.vegeta_graph_jpg,
   );
 }

@@ -1,4 +1,4 @@
-export function formatBytes(bytes: number) {
+export function format_bytes(bytes: number) {
   if (bytes === 0) return "0 Bytes";
 
   const k = 1000;
@@ -8,7 +8,7 @@ export function formatBytes(bytes: number) {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 }
 
-export function formatMicroseconds(microseconds: number) {
+export function format_microseconds(microseconds: number) {
   if (microseconds < 0) return "0µs";
   if (microseconds < 1000) return `${microseconds}µs`;
 

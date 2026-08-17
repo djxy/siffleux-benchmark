@@ -1,21 +1,11 @@
 import { spawn, type ChildProcess } from "child_process";
 import fs from "fs";
-import { mkdir } from "fs/promises";
 
 export interface ProcessOptions {
   cmd: string;
   args: string[];
   stdout_file?: string;
   stderr_file?: string;
-}
-
-export async function prepare_test_folder(test_group: string, test_name: string) {
-  const test_folder = `/tests/${test_group}`;
-  const test_file_prefix = `${test_folder}/${test_name}`;
-
-  await mkdir(test_folder, { recursive: true });
-
-  return test_file_prefix;
 }
 
 export function sleep(seconds: number) {

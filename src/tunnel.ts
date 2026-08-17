@@ -1,17 +1,23 @@
 import Fastify from "fastify";
-import { prepare_test_folder, Process, sleep } from "./process.js";
+import { Process, sleep } from "./process.js";
 import { create_pidstat_chart } from "./charts.js";
 
+export interface TunnelOutputFiles {
+  tunnel_stdout: string;
+  tunnel_stderr: string;
+  pidstat_stdout: string;
+  pidstat_stderr: string;
+  pidstat_graph_jpg: string;
+}
+
 export interface StartTunnelConfig {
-  test_group: string;
-  test_name: string;
+  output_files: TunnelOutputFiles;
   cmd: string;
   args: string[];
 }
 
 export interface Tunnel {
-  test_file_prefix: string;
-  pidstat_log_file: string;
+  config: StartTunnelConfig;
   processes: Process[];
 }
 
@@ -30,40 +36,31 @@ export function launch_tunnel_manager() {
       return;
     }
 
+    const config = req.body as StartTunnelConfig;
+
     const tunnel: Tunnel = {
       processes: [],
-      test_file_prefix: "",
-      pidstat_log_file: "",
+      config,
     };
 
     tunnels.set(tunnel_id, tunnel);
 
-    const start_config = req.body as StartTunnelConfig;
-    const test_file_prefix = await prepare_test_folder(
-      start_config.test_group,
-      start_config.test_name,
-    );
-
-    tunnel.test_file_prefix = test_file_prefix;
-
     const tunnel_process = Process.spawn({
-      cmd: start_config.cmd,
-      args: start_config.args,
-      stderr_file: `${test_file_prefix}.err`,
-      stdout_file: `${test_file_prefix}.log`,
+      cmd: config.cmd,
+      args: config.args,
+      stderr_file: config.output_files.tunnel_stderr,
+      stdout_file: config.output_files.tunnel_stdout,
     });
 
     tunnel.processes.push(tunnel_process);
 
     await sleep(0.5);
 
-    tunnel.pidstat_log_file = `${test_file_prefix}-pidstat.log`;
-
     const pidstat_process = Process.spawn({
       cmd: "pidstat",
       args: ["-p", `${tunnel_process.pid()}`, "-u", "-r", "1"],
-      stderr_file: `${test_file_prefix}-pidstat.err`,
-      stdout_file: `${test_file_prefix}-pidstat.log`,
+      stderr_file: config.output_files.pidstat_stderr,
+      stdout_file: config.output_files.pidstat_stdout,
     });
 
     tunnel.processes.push(pidstat_process);
@@ -87,10 +84,7 @@ export function launch_tunnel_manager() {
 
     tunnels.delete(tunnel_id);
 
-    await create_pidstat_chart(
-      tunnel.pidstat_log_file,
-      `${tunnel.test_file_prefix}-pidstat.jpeg`,
-    );
+    await create_pidstat_chart(tunnel.config.output_files);
 
     rep.send();
   });
