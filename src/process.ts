@@ -8,9 +8,13 @@ export interface ProcessOptions {
   stderr_file?: string;
 }
 
-export function sleep(seconds: number) {
+export function sleep_seconds(seconds: number) {
+  return sleep_ms(seconds * 1000);
+}
+
+export function sleep_ms(ms: number) {
   return new Promise((res, _) => {
-    setTimeout(res, seconds * 1000);
+    setTimeout(res, ms);
   });
 }
 

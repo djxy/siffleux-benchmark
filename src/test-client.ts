@@ -1,5 +1,5 @@
 import logger from "./logger.js";
-import { Process, sleep } from "./process.js";
+import { Process, sleep_ms, sleep_seconds } from "./process.js";
 import { mkdir } from "fs/promises";
 import net, { Socket } from "net";
 import dgram from "dgram";
@@ -480,7 +480,7 @@ export async function launch_tcp_idle_connection_test(
     `Testing ${config.idle_connection.connections} idle connections for ${config.duration_seconds} seconds.`,
   );
 
-  await sleep(config.duration_seconds);
+  await sleep_seconds(config.duration_seconds);
 
   sockets.forEach((socket) => {
     socket.destroy();
@@ -566,7 +566,7 @@ export async function launch_tcp_open_connections_test(
     `Opening ${config.open_connection.connections_per_second} connections per second for ${config.duration_seconds} seconds.`,
   );
 
-  await sleep(config.duration_seconds);
+  await sleep_seconds(config.duration_seconds);
 
   clearInterval(interval_id);
 
@@ -642,7 +642,7 @@ export async function launch_udp_idle_socket_test(
     `Testing ${config.idle_socket.sockets} idle sockets for ${config.duration_seconds} seconds.`,
   );
 
-  await sleep(config.duration_seconds);
+  await sleep_seconds(config.duration_seconds);
 
   sockets.forEach(([socket, timeout_id]) => {
     socket.close();
@@ -792,7 +792,7 @@ export async function launch_udp_open_sockets_test(
     `Opening ${config.open_socket.sockets_per_second} sockets per second for ${config.duration_seconds} seconds.`,
   );
 
-  await sleep(config.duration_seconds);
+  await sleep_seconds(config.duration_seconds);
 
   clearInterval(interval_id);
 
@@ -824,6 +824,7 @@ async function start_tunnels(
       test_output_files.tunnel_server,
     ) as StartTunnelConfig,
   );
+  await sleep_ms(500);
   await start_tunnel(
     config.tunnel.client_endpoint,
     config.tunnel.id,
@@ -831,6 +832,7 @@ async function start_tunnels(
       test_output_files.tunnel_client,
     ) as StartTunnelConfig,
   );
+  await sleep_ms(1000);
 }
 
 async function stop_tunnels(config: TunnelConfig) {

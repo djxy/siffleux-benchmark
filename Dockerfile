@@ -44,7 +44,7 @@ RUN chmod +x /usr/local/bin/siffle
 #    Tunnels    #
 #################
 
-RUN wget https://github.com/djxy/siffleux/releases/download/0.2.0/siffleux-linux-$(uname -m)
+RUN wget https://github.com/djxy/siffleux/releases/download/0.3.1/siffleux-linux-$(uname -m)
 RUN mv siffleux-linux-$(uname -m) /usr/local/bin/siffleux
 RUN chmod +x /usr/local/bin/siffleux
 

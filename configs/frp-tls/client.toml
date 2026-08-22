@@ -7,7 +7,7 @@ transport.tls.keyFile = "/app/configs/frp-tls/client.key"
 transport.tls.trustedCaFile = "/app/configs/frp-tls/ca.crt"
 
 [[proxies]]
-name = "siffle"
+name = "siffle_tcp"
 type = "tcp"
 localIP = "test-server"
 localPort = 5678
@@ -21,7 +21,7 @@ localPort = 80
 remotePort = 9001
 
 [[proxies]]
-name = "iperf3"
+name = "iperf3_tcp"
 type = "tcp"
 localIP = "test-server"
 localPort = 5201
@@ -30,6 +30,27 @@ remotePort = 9002
 [[proxies]]
 name = "tcp_echo"
 type = "tcp"
+localIP = "test-server"
+localPort = 3001
+remotePort = 9003
+
+[[proxies]]
+name = "siffle_udp"
+type = "udp"
+localIP = "test-server"
+localPort = 5678
+remotePort = 9000
+
+[[proxies]]
+name = "iperf3_udp"
+type = "udp"
+localIP = "test-server"
+localPort = 5201
+remotePort = 9002
+
+[[proxies]]
+name = "udp_echo"
+type = "udp"
 localIP = "test-server"
 localPort = 3001
 remotePort = 9003

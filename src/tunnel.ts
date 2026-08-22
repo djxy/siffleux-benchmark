@@ -1,5 +1,5 @@
 import Fastify from "fastify";
-import { Process, sleep } from "./process.js";
+import { Process, sleep_ms, sleep_seconds } from "./process.js";
 import { create_pidstat_chart } from "./charts.js";
 
 export interface TunnelOutputFiles {
@@ -54,7 +54,9 @@ export function launch_tunnel_manager() {
 
     tunnel.processes.push(tunnel_process);
 
-    await sleep(0.5);
+    while (typeof tunnel_process.pid() !== 'number') {
+      await sleep_ms(5);
+    }
 
     const pidstat_process = Process.spawn({
       cmd: "pidstat",
